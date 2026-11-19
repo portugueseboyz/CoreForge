@@ -2,6 +2,22 @@
 import { BACKEND_EXACT, BACKEND_TEMPLATES } from "./en-backend";
 
 const UI: Record<string, string> = {
+  "Últimos 10 minutos de temperatura, carga, consumo e ventoinha, com mínimo, média e máximo.": "Last 10 minutes of temperature, load, power and fan speed, with min, average and max.",
+  "Ventoinha": "Fan",
+  "Passe o mouse ou toque no gráfico para ver o valor.": "Hover or tap the chart to read a value.",
+  "mín.": "min",
+  "média": "avg",
+  "máx.": "max",
+  "Sem sensor para esta leitura neste PC.": "No sensor for this reading on this PC.",
+  "Retomar": "Resume",
+  "Pausar": "Pause",
+  "Limpar": "Clear",
+  "Vista pausada: a coleta continua em segundo plano.": "View paused: collection continues in the background.",
+  "{0} leituras na memória": "{0} samples in memory",
+  "há {0} s": "{0} s ago",
+  "Salvar relatório": "Save report",
+  "Relatório salvo em {0}": "Report saved to {0}",
+  "Não foi possível salvar: {0}": "Could not save: {0}",
   "Preferências": "Preferences",
   "Idioma": "Language",
   "Configurações": "Settings",

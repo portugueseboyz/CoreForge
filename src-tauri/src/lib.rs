@@ -1,4 +1,5 @@
 mod bench;
+mod report_file;
 mod disk;
 mod fans;
 mod games;
@@ -54,7 +55,7 @@ pub fn run() {
         .manage(gpu_rt::RtState::default())
         .manage(tools::InstallState::default())
         .manage(curves::CurveState::default())
-        .invoke_handler(tauri::generate_handler![sysinfo::system_info, sysinfo::sensors, gpu::gpu_info, gpu::gpu_live,
+        .invoke_handler(tauri::generate_handler![report_file::report_save, sysinfo::system_info, sysinfo::sensors, gpu::gpu_info, gpu::gpu_live,
             stress::stress_start, stress::stress_stop, stress::stress_status,
             bench::bench_start, bench::bench_cancel, bench::bench_status, bench::bench_image,
             disk::disk_mounts, disk::disk_bench_start, disk::disk_bench_cancel, disk::disk_bench_status, disk::disk_health,

@@ -8,7 +8,7 @@ const info = [
   node("Placa de vídeo", "", [node("NVIDIA Corporation GA106 [Geforce RTX 3050]", "", [node("Slot PCI", "01:00.0"), node("Driver", "nvidia")])]),
   node("Armazenamento", "", [node("KIOXIA-EXCERIA SSD (/dev/nvme0n1)", "", [node("Tamanho", "500 GB"), node("Tipo", "NVMe"), node("Interface", "nvme")])]),
 ];
-const metrics = { gpu_name: "RTX 3050", gpu_util: 71, gpu_temp: 63, gpu_clock: 1905, gpu_mem_clock: 7001, gpu_power_w: 94.2, gpu_fan: 48, vram_used_mb: 3100, vram_total_mb: 8192,
+const metrics = { gpu_name: "RTX 3050", gpu_util: 71, gpu_temp: 63, gpu_clock: 1905, gpu_mem_clock: 7001, gpu_power_w: 94.2, gpu_fan: 48, fan_rpm: 1180, vram_used_mb: 3100, vram_total_mb: 8192,
   gpu_throttle: null, cpu_load: 38, cpu_busiest: 71, cpu_temp: 52, cpu_clock_mhz: 3600, ram_used_gb: 6.2, ram_total_gb: 14.9 };
 const sensors = [["k10temp", "Temperatura", "Tctl", 52.1, "°C"], ["nvme", "Temperatura", "Composite", 39, "°C"], ["CPU", "Carga", "CPU Total", 38.2, "%"], ["CPU", "Clock", "CPU Core #1", 3612, "MHz"], ["amdgpu", "Ventoinhas", "fan1", 1180, "RPM"]]
   .map(([hardware, category, name, value, unit], i) => ({ id: String(i), hardware, category, name, value, unit }));
@@ -39,7 +39,7 @@ const checks = [
   { id: "vulkan", title: "Vulkan (testes de GPU)", status: "missing", detail: "Faltam a biblioteca ou o driver Vulkan.", fix: null },
   { id: "rgb", title: "LEDs RGB", status: "ok", detail: "OpenRGB instalado e com acesso aos dispositivos encontrados.", fix: null }];
 const idle = { running: false, phase: "", progress: 0, fps_now: 0, frames: 0, adapter: "", error: "", result: null, rows: [], passes: 0, elapsed_s: 0 };
-const answers: Record<string, unknown> = { profiles_list: [{ name: "Gamer", apply_on_start: true, fans: [{ kind: "hwmon", label: "Placa-mãe (nct6798) · CPU Fan", percent: 70 }], leds: [{ device: "ASUS PRIME A520M-A II", zone: "Addressable RGB Header 1", mode: "Direct", color: "b4ff1f", colors: null }, { device: "HyperX Fury RGB", zone: "HyperX Slot 1", mode: "Static", color: "ff3b30", colors: null }] }],
+const answers: Record<string, unknown> = { report_save: "/home/user/Documentos/coreforge-relatorio-0.md", profiles_list: [{ name: "Gamer", apply_on_start: true, fans: [{ kind: "hwmon", label: "Placa-mãe (nct6798) · CPU Fan", percent: 70 }], leds: [{ device: "ASUS PRIME A520M-A II", zone: "Addressable RGB Header 1", mode: "Direct", color: "b4ff1f", colors: null }, { device: "HyperX Fury RGB", zone: "HyperX Slot 1", mode: "Static", color: "ff3b30", colors: null }] }],
   power_info: { batteries: [{ name: "BAT0", status: "Discharging", percent: 72, health_pct: 88, power_w: 11.4, cycles: 212, limit_pct: 80, technology: "Li-ion" }], ac_online: false, profile: "balanced", profiles: ["performance", "balanced", "power-saver"] }, power_profile_set: null,
   curves_get: [], curves_save: null, curves_start: null, curves_stop: null, curves_status: { running: false, error: "" },
   profile_capture: { fans: [{ kind: "hwmon", label: "CPU Fan", percent: 55 }], leds: [{ device: "x", zone: null, mode: "Direct", color: "ff0000", colors: null }] }, profile_autostart_get: false, games_scan: [], fps_table: { gpu: "RTX 3050", cpu: "Ryzen 5 5500", gpu_known: true, cpu_known: false, rows: [{ name: "Counter-Strike 2", genre: "FPS competitivo", avg: 190, low1: 142, limiter: "GPU" }, { name: "Elden Ring", genre: "RPG de ação", avg: 60, low1: 45, limiter: "Trava do jogo" }] },
@@ -50,7 +50,7 @@ const answers: Record<string, unknown> = { profiles_list: [{ name: "Gamer", appl
 let phase = 0;
 // Valores que oscilam, para ver os gráficos se movendo.
 const jitter = () => { phase += 0.35; const w = (base: number, amp: number) => Math.max(0, base + amp * Math.sin(phase) + (Math.random() - 0.5) * amp * 0.6);
-  return { ...metrics, cpu_load: w(38, 22), cpu_busiest: w(60, 25), cpu_temp: w(52, 9), gpu_util: w(65, 30), gpu_temp: w(63, 8), gpu_power_w: w(95, 35), ram_used_gb: w(6.2, 0.5), vram_used_mb: w(3100, 400) }; };
+  return { ...metrics, cpu_load: w(38, 22), cpu_busiest: w(60, 25), cpu_temp: w(52, 9), gpu_util: w(65, 30), gpu_temp: w(63, 8), gpu_power_w: w(95, 35), fan_rpm: w(1200, 300), ram_used_gb: w(6.2, 0.5), vram_used_mb: w(3100, 400) }; };
 (window as unknown as { __TAURI_INTERNALS__: unknown }).__TAURI_INTERNALS__ = {
   invoke: async (cmd: string) => (cmd === "live_metrics" ? jitter() : cmd === "bench_image" ? new ArrayBuffer(0) : cmd in answers ? answers[cmd] : null),
   transformCallback: () => 0,

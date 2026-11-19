@@ -5,6 +5,7 @@ import { pushSample } from "./history";
 import { loadRuns, saveRun, RUN_KINDS, type Run } from "./runs";
 import { buildReport } from "./report";
 import { tempLimit, curveX as x, curveY as y, extendCurve } from "./curvemath";
+import { History } from "./History";
 import { Chart, TEMP_LINES, LOAD_LINES, POWER_LINES, BOTTLENECK_LINES } from "./Chart";
 import { invoke } from "@tauri-apps/api/core";
 import logo from "./assets/logo.svg";
@@ -61,10 +62,18 @@ function Info() {
   const rank = (n: InfoNode) => { const i = order.indexOf(n.header); return i < 0 ? order.length : i; };
   const [report, setReport] = useState("");
   const share = () => { const t = buildReport(nodes); setReport(t); navigator.clipboard?.writeText(t).catch(() => {}); };
+  const [saved, setSaved] = useState("");
+  const save = async () => {
+    const [sensors, checks] = await Promise.all([invoke<Sensor[]>("sensors"), invoke<Check[]>("system_check")]);
+    const t = buildReport(nodes, "0.1.0", { sensors, checks });
+    setReport(t);
+    invoke<string>("report_save", { text: t }).then((p) => setSaved(tf("Relatório salvo em {0}", p)), (e) => setSaved(tf("Não foi possível salvar: {0}", String(e))));
+  };
   return (
     <>
       <div className="cards">{[...nodes].sort((a, b) => rank(a) - rank(b)).map((n, i) => <InfoCard key={i} n={n} />)}</div>
-      <div className="row" style={{ marginTop: 18 }}><button className="btn small" onClick={share}>{tr("Copiar relatório")}</button></div>
+      <div className="row" style={{ marginTop: 18 }}><button className="btn small" onClick={share}>{tr("Copiar relatório")}</button>
+        <button className="btn small" onClick={save}>{tr("Salvar relatório")}</button>{saved && <span className="dim" role="status">{saved}</span>}</div>
       {report && <section className="card" style={{ marginTop: 14 }}><p className="dim">{tr("Copiado para a área de transferência. Cole onde precisar (fórum, pedido de suporte):")}</p><pre className="log">{report}</pre></section>}
     </>
   );
@@ -459,7 +468,7 @@ function GpuStress() {
 }
 
 type Metrics = { gpu_name: string | null; gpu_util: number | null; gpu_temp: number | null; gpu_clock: number | null; gpu_mem_clock: number | null;
-  gpu_power_w: number | null; gpu_fan: number | null; vram_used_mb: number | null; vram_total_mb: number | null; gpu_throttle: string | null;
+  gpu_power_w: number | null; gpu_fan: number | null; fan_rpm: number | null; vram_used_mb: number | null; vram_total_mb: number | null; gpu_throttle: string | null;
   cpu_load: number | null; cpu_busiest: number | null; cpu_temp: number | null; cpu_clock_mhz: number | null; ram_used_gb: number | null; ram_total_gb: number | null; fps: number | null; fps_stale: boolean };
 
 const n0 = (v: number | null | undefined, u: string, d = 0) => (v == null ? "—" : `${v.toFixed(d)} ${u}`);
@@ -1209,6 +1218,7 @@ const SECTIONS: Section[] = [
     { id: "info", label: "Informações", blurb: tr("Sistema, placa-mãe, processador, memória, vídeo e discos desta máquina."), view: () => <Info /> },
     { id: "gpu", label: "Placa de vídeo", blurb: tr("Ficha da placa de vídeo (NVIDIA, AMD e Intel) e leituras ao vivo."), view: () => <Gpu /> },
     { id: "energia", label: "Energia", blurb: tr("Bateria, fonte de energia e perfil de desempenho (notebooks)."), view: () => <Power /> },
+    { id: "historico", label: "Histórico", blurb: tr("Últimos 10 minutos de temperatura, carga, consumo e ventoinha, com mínimo, média e máximo."), view: () => <History /> },
     { id: "sensores", label: "Sensores", blurb: tr("Temperaturas, clocks, cargas e tensões, atualizados a cada segundo."), view: () => <Sensors /> }] },
   { id: "disco", title: "Disco e rede", tabs: [
     { id: "disco", label: "Disco", blurb: tr("Mede velocidade e IOPS do disco e mostra a saúde dele."), view: () => <Disk /> },
@@ -1465,7 +1475,7 @@ function ThermalStrip() {
   const pct = (a: number | null, b: number | null) => (a != null && b ? (100 * a) / b : null);
   useEffect(() => {
     if (!m) return;
-    pushSample({ t: Date.now(), cpu_load: m.cpu_load, cpu_busiest: m.cpu_busiest, cpu_temp: m.cpu_temp, gpu_util: m.gpu_util, gpu_temp: m.gpu_temp, gpu_power: m.gpu_power_w,
+    pushSample({ t: Date.now(), cpu_load: m.cpu_load, cpu_busiest: m.cpu_busiest, cpu_temp: m.cpu_temp, gpu_util: m.gpu_util, gpu_temp: m.gpu_temp, gpu_power: m.gpu_power_w, fan_rpm: m.fan_rpm,
       ram_pct: pct(m.ram_used_gb, m.ram_total_gb), vram_pct: pct(m.vram_used_mb, m.vram_total_mb) });
   }, [m]);
   return (
