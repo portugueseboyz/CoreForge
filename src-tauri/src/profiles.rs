@@ -107,6 +107,8 @@ fn autostart_path() -> Option<PathBuf> { std::env::var("HOME").ok().map(|h| Path
 
 /// Conteúdo do atalho de autostart. Só reaplica as luzes: mudar ventoinhas exige senha e não deve aparecer sozinho no login.
 pub fn autostart_entry(exe: &str) -> String {
+    // Exec entre aspas: a especificação exige escapar \ " ` $ com barra e % como %%; quebra de linha cortaria a entrada.
+    let exe: String = exe.chars().filter(|c| !matches!(c, '\n' | '\r')).flat_map(|c| match c { '\\' | '"' | '`' | '$' => vec!['\\', c], '%' => vec!['%', '%'], c => vec![c] }).collect();
     format!("[Desktop Entry]\nType=Application\nName=CoreForge (reaplicar luzes)\nComment=Reaplica o perfil de luzes do CoreForge ao iniciar a sessão\nExec=\"{exe}\" --apply-profile\nTerminal=false\nNoDisplay=true\nX-GNOME-Autostart-enabled=true\n")
 }
 
@@ -161,5 +163,8 @@ mod tests {
     fn autostart_entry_runs_only_the_headless_mode() {
         let e = autostart_entry("/opt/coreforge/coreforge");
         assert!(e.contains("Exec=\"/opt/coreforge/coreforge\" --apply-profile") && e.contains("NoDisplay=true"));
+        let evil = autostart_entry("/tmp/a\"b$c%d\nExec=/bin/sh");
+        assert_eq!(evil.lines().filter(|l| l.starts_with("Exec=")).count(), 1);
+        assert!(evil.contains(r#"Exec="/tmp/a\"b\$c%%dExec=/bin/sh" --apply-profile"#));
     }
 }
