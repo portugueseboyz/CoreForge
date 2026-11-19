@@ -195,7 +195,7 @@ pub fn rt_start(state: tauri::State<RtState>, res: String, preset: String) -> Re
     *state.st.lock().unwrap_or_else(|e| e.into_inner()) = RtStatus { running: true, ..Default::default() };
     let (st, cancel) = (state.st.clone(), state.cancel.clone());
     thread::spawn(move || {
-        let r = run(w, h, &preset, &st, &cancel);
+        let r = crate::guard(|| run(w, h, &preset, &st, &cancel));
         let mut g = st.lock().unwrap_or_else(|e| e.into_inner());
         g.running = false;
         match r { Ok(v) => { g.result = Some(v); g.progress = 1.0; g.phase = "Concluído".into(); } Err(e) => g.error = e }

@@ -101,7 +101,8 @@ pub fn overlay_toggle(app: tauri::AppHandle, corner: String, width: f64, height:
 
 /// Pasta onde o MangoHud grava o CSV de log (opcional: sem MangoHud ou sem log ativo, o FPS fica ausente).
 fn mangohud_dir() -> std::path::PathBuf {
-    std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".cache/coreforge/mangohud")
+    // sem HOME o caminho seria relativo ao diretório atual: usa a pasta temporária
+    std::env::var_os("HOME").map_or_else(std::env::temp_dir, std::path::PathBuf::from).join(".cache/coreforge/mangohud")
 }
 
 /// Opção de inicialização do Steam/terminal que faz o MangoHud gravar o log lido pelo overlay.
@@ -154,6 +155,12 @@ mod tests {
     const HEAD: &str = "os,cpu,gpu,ram,kernel,driver,cpuscheduler\nLinux,X,Y,16000,7.0,Mesa,none\nfps,frametime,cpu_load,cpu_power,gpu_load,cpu_temp,gpu_temp,gpu_core_clock,gpu_mem_clock,gpu_vram_used,gpu_power,ram_used,swap_used,process_rss,cpu_mhz,elapsed\n";
     // log_versioning=1: linha de versão e separadores antes do cabeçalho; fps deslocado de coluna.
     const VER: &str = "v1\n--------------------MangoHud Info--------------------\nos,cpu,gpu\nLinux,X,Y\n--------------------FPS Data-------------------------\nframetime,fps,cpu_load,a,b,c\n";
+    #[test]
+    fn fps_empty_or_truncated() {
+        assert_eq!(parse_last_fps("", 0), None);
+        assert_eq!(parse_last_fps("no newline", 0), None);
+        assert_eq!(parse_last_fps("\n", 5), None);
+    }
     #[test]
     fn last_complete_row() {
         let t = format!("{HEAD}60.1,16.6,10,0,50,40,50,1500,800,2,100,8,0,1,3000,1\n143.9,6.9,10,0,50,40,50,1500,800,2,100,8,0,1,3000,2\n");

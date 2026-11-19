@@ -54,7 +54,7 @@ function InfoCard({ n }: { n: InfoNode }) {
 
 function Info() {
   const [nodes, setNodes] = useState<InfoNode[]>([]);
-  useEffect(() => { invoke<InfoNode[]>("system_info").then(setNodes); }, []);
+  useEffect(() => { invoke<InfoNode[]>("system_info").then((x) => setNodes(x ?? [])); }, []);
   // Ordem pensada para a grade de 3 colunas: cada linha reúne cartões de tamanho parecido.
   const order = ["Sistema operacional", "Processador", "Placa-mãe e BIOS", "Memória", "Placa de vídeo", "Armazenamento"];
   const rank = (n: InfoNode) => { const i = order.indexOf(n.header); return i < 0 ? order.length : i; };
@@ -75,9 +75,9 @@ function Gpu() {
   const [info, setInfo] = useState<InfoNode[]>([]);
   const [live, setLive] = useState<GpuLive[]>([]);
   useEffect(() => {
-    invoke<InfoNode[]>("gpu_info").then(setInfo);
+    invoke<InfoNode[]>("gpu_info").then((x) => setInfo(x ?? []));
     let alive = true;
-    const tick = () => invoke<GpuLive[]>("gpu_live").then((l) => alive && setLive(l));
+    const tick = () => invoke<GpuLive[]>("gpu_live").then((l) => alive && setLive(l ?? []));
     tick();
     const t = setInterval(tick, 1000);
     return () => { alive = false; clearInterval(t); };
@@ -306,8 +306,8 @@ function Disk() {
   const [st, setSt] = useState<DiskStatus | null>(null);
   const [health, setHealth] = useState<Health[]>([]);
   useEffect(() => {
-    invoke<Mount[]>("disk_mounts").then((m) => { setMounts(m); setMount((c) => c || m[0]?.path || ""); });
-    invoke<Health[]>("disk_health").then(setHealth);
+    invoke<Mount[]>("disk_mounts").then((m0) => { const m = m0 ?? []; setMounts(m); setMount((c) => c || m[0]?.path || ""); });
+    invoke<Health[]>("disk_health").then((x) => setHealth(x ?? []));
     const t = setInterval(() => invoke<DiskStatus>("disk_bench_status").then(setSt), 500);
     return () => clearInterval(t);
   }, []);
@@ -369,7 +369,7 @@ function Net() {
   const [st, setSt] = useState<NetStatus | null>(null);
   const [ifs, setIfs] = useState<Iface[]>([]);
   useEffect(() => {
-    invoke<Iface[]>("net_interfaces").then(setIfs);
+    invoke<Iface[]>("net_interfaces").then((x) => setIfs(x ?? []));
     const t = setInterval(() => invoke<NetStatus>("net_status").then(setSt), 500);
     return () => clearInterval(t);
   }, []);
@@ -579,7 +579,7 @@ function Games() {
   const [preset, setPreset] = useState("Alto");
   const [up, setUp] = useState("Desligado");
   const [tbl, setTbl] = useState<FpsTable | null>(null);
-  useEffect(() => { invoke<Game[]>("games_scan").then(setGames); }, []);
+  useEffect(() => { invoke<Game[]>("games_scan").then((g) => setGames(g ?? [])); }, []);
   useEffect(() => { invoke<FpsTable>("fps_table", { res, preset, upscaling: up }).then(setTbl); }, [res, preset, up]);
   return (
     <>
@@ -661,7 +661,7 @@ type StartupItem = { id: string; name: string; exec: string; scope: string; enab
 function Startup() {
   const [items, setItems] = useState<StartupItem[]>([]);
   const [err, setErr] = useState("");
-  const load = () => invoke<StartupItem[]>("startup_list").then(setItems);
+  const load = () => invoke<StartupItem[]>("startup_list").then((x) => setItems(x ?? []));
   useEffect(() => { load(); }, []);
   const set = (id: string, enabled: boolean) => invoke("startup_set", { id, enabled }).then(() => { setErr(""); load(); }).catch((e) => setErr(String(e)));
   return (

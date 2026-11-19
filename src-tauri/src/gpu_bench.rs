@@ -232,7 +232,7 @@ pub fn gpu_bench_start(state: tauri::State<GpuBenchState>, res: String, seconds:
     *state.st.lock().unwrap_or_else(|e| e.into_inner()) = GpuBenchStatus { running: true, ..Default::default() };
     let (st, cancel) = (state.st.clone(), state.cancel.clone());
     thread::spawn(move || {
-        let r = run(w, h, seconds.clamp(10.0, 120.0), &st, &cancel);
+        let r = crate::guard(|| run(w, h, seconds.clamp(10.0, 120.0), &st, &cancel));
         let mut g = st.lock().unwrap_or_else(|e| e.into_inner());
         g.running = false;
         match r { Ok(v) => { g.result = Some(v); g.progress = 1.0 } Err(e) => g.error = e }

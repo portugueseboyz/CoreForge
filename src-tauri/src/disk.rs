@@ -162,7 +162,7 @@ pub fn disk_bench_start(st: tauri::State<DiskState>, mount: String, file_mb: u64
     *st.inner.lock().unwrap_or_else(|e| e.into_inner()) = Inner::default();
     let (inner, running, cancel) = (st.inner.clone(), st.running.clone(), st.cancel.clone());
     thread::spawn(move || {
-        let r = bench(&mount, file_mb.clamp(64, 16384), &inner, &cancel);
+        let r = crate::guard(|| bench(&mount, file_mb.clamp(64, 16384), &inner, &cancel));
         let mut g = inner.lock().unwrap_or_else(|e| e.into_inner());
         match r { Ok(v) => { g.result = Some(v); g.progress = 1.0; g.phase = "Concluído".into(); } Err(e) => g.error = e }
         running.store(false, Relaxed);

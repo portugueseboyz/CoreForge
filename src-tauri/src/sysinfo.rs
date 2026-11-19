@@ -184,14 +184,14 @@ pub fn sensors(prev: tauri::State<CpuPrev>) -> Vec<Sensor> {
     let mut prev = prev.0.lock().unwrap_or_else(|e| e.into_inner());
     let cur: Vec<(u64, u64)> = stat.lines().filter(|l| l.starts_with("cpu")).map(|l| {
         let v: Vec<u64> = l.split_whitespace().skip(1).filter_map(|x| x.parse().ok()).collect();
-        (v.get(3).unwrap_or(&0) + v.get(4).unwrap_or(&0), v.iter().sum())
+        (v.get(3).unwrap_or(&0).saturating_add(*v.get(4).unwrap_or(&0)), v.iter().fold(0u64, |a, x| a.saturating_add(*x)))
     }).collect();
     if prev.len() == cur.len() {
         for (i, (c, p)) in cur.iter().zip(prev.iter()).enumerate() {
             let (di, dt) = (c.0.saturating_sub(p.0), c.1.saturating_sub(p.1));
             if dt > 0 {
                 let name = if i == 0 { "CPU Total".to_string() } else { format!("CPU Core #{i}") };
-                out.push(Sensor { id: format!("cpu/load/{i}"), hardware: "CPU".into(), category: "Carga", name, value: 100.0 * (dt - di) as f64 / dt as f64, unit: "%" });
+                out.push(Sensor { id: format!("cpu/load/{i}"), hardware: "CPU".into(), category: "Carga", name, value: 100.0 * dt.saturating_sub(di) as f64 / dt as f64, unit: "%" });
             }
         }
     }

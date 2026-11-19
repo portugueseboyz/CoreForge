@@ -121,8 +121,9 @@ pub fn stress_start(st: tauri::State<StressState>, cpu: bool, ram: bool, ram_fra
 
     // Vigia: temperatura limite, tempo máximo e erros de memória param o teste sozinhos.
     let (s, st2) = (stop.clone(), stats.clone());
+    let minutes = minutes.min(1440.0); // Duration::from_secs_f64 entra em pânico com valores enormes
     handles.push(thread::spawn(move || {
-        let t0 = Instant::now();
+      let _ = crate::guard(|| { let t0 = Instant::now();
         while !s.load(Relaxed) {
             st2.elapsed_ms.store(t0.elapsed().as_millis() as u64, Relaxed);
             if let Some(t) = sysinfo::cpu_temp() {
@@ -143,6 +144,7 @@ pub fn stress_start(st: tauri::State<StressState>, cpu: bool, ram: bool, ram_fra
             }
             thread::sleep(Duration::from_millis(500));
         }
+        Ok(()) });
         s.store(true, Relaxed);
         st2.running.store(false, Relaxed);
     }));

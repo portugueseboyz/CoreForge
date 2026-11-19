@@ -20,6 +20,14 @@ mod tools;
 mod sysinfo;
 
 pub use fans::root_helper;
+
+/// Roda trabalho de fundo convertendo pânico em erro, para que o estado "rodando" nunca fique preso.
+pub(crate) fn guard<T>(f: impl FnOnce() -> Result<T, String>) -> Result<T, String> {
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)).unwrap_or_else(|p| {
+        let m = p.downcast_ref::<&str>().map(|s| s.to_string()).or_else(|| p.downcast_ref::<String>().cloned()).unwrap_or_default();
+        Err(format!("Falha interna inesperada ({m})"))
+    })
+}
 pub use profiles::apply_start_profile_headless;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -33,7 +41,7 @@ pub fn run() {
         unsafe { std::env::set_var("GDK_BACKEND", "x11") };
     }
     tauri::Builder::default()
-        .setup(|app| { tray::init(app)?; Ok(()) })
+        .setup(|app| { if let Err(e) = tray::init(app) { eprintln!("CoreForge: bandeja do sistema indisponível: {e}"); } Ok(()) })
         .on_window_event(tray::on_window_event)
         .manage(sysinfo::CpuPrev::default())
         .manage(stress::StressState::default())
@@ -60,5 +68,18 @@ pub fn run() {
             fans::fans_report, fans::fan_apply, fans::fan_load_module, fans::fan_persist_module, fans::fan_overrides, fans::fan_restore_all, setup::system_check, setup::system_fix, fans::fan_scan_modules, fans::fan_map_test,
             leds::leds_status, leds::leds_set, leds::leds_discover, profiles::profiles_list, profiles::profile_capture, profiles::profile_save, profiles::profile_delete, profiles::profile_set_start, profiles::profile_apply, profiles::profile_autostart_get, profiles::profile_autostart_set, leds::leds_report, leds::leds_setup])
         .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .unwrap_or_else(|e| {
+            eprintln!("CoreForge não conseguiu abrir a janela: {e}\nVerifique se há uma sessão gráfica (DISPLAY/WAYLAND_DISPLAY) e se o WebKitGTK está instalado.");
+            std::process::exit(1);
+        });
+}
+
+#[cfg(test)]
+mod guard_tests {
+    #[test]
+    fn guard_turns_panic_into_error() {
+        let r: Result<(), String> = super::guard(|| panic!("boom"));
+        assert!(r.unwrap_err().contains("boom"));
+        assert_eq!(super::guard(|| Ok(1)), Ok(1));
+    }
 }
