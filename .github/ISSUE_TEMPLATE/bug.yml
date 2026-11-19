@@ -1,0 +1,21 @@
+name: Bug report / Relatar um erro
+description: Something does not work as expected. / Algo não funciona como esperado.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened / O que aconteceu
+      description: Steps to reproduce and what you expected. / Passos para reproduzir e o que esperava.
+    validations:
+      required: true
+  - type: textarea
+    id: hw
+    attributes:
+      label: Hardware and system / Hardware e sistema
+      description: Distribution, desktop (X11 or Wayland), CPU, GPU, motherboard or laptop model. Use "Salvar relatório" in Sistema > Informações; the report has no name, serial, MAC or IP. / Distribuição, ambiente, CPU, GPU, placa-mãe ou notebook. Use "Salvar relatório" em Sistema > Informações; o relatório não tem nome, serial, MAC nem IP.
+  - type: input
+    id: version
+    attributes:
+      label: CoreForge version / Versão
+      placeholder: "0.1.0"

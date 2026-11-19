@@ -56,3 +56,9 @@ GPU tests need Vulkan; ray tracing needs `VK_KHR_ray_query`. Optional tools: `sm
 
 Fan control, kernel-module loading and I²C access can affect hardware. The app asks for confirmation and your system password for each
 change, keeps a 25 % floor on manual fan speed, and can return every fan it changed to automatic. Use at your own risk (MIT, no warranty).
+
+## Feedback
+
+Found a bug, have an idea or want to say how it runs on your hardware? Use the [issue forms](https://github.com/portugueseboyz/CoreForge/issues/new/choose)
+or start a [discussion](https://github.com/portugueseboyz/CoreForge/discussions). English or Portuguese. Only the maintainer changes this repository;
+suggestions arrive as issues, discussions or pull requests, which are reviewed before anything is merged.

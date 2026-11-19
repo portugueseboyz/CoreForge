@@ -1,0 +1,11 @@
+name: Feature request / Pedir uma função
+description: Suggest an improvement or new feature. / Sugira uma melhoria ou função nova.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like to see / O que gostaria de ver
+      description: The problem you want solved matters more than the solution. / O problema que quer resolver importa mais que a solução.
+    validations:
+      required: true

@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Ideas and questions / Ideias e dúvidas
+    url: https://github.com/portugueseboyz/CoreForge/discussions
+    about: Talk about the app, ask for help or share how it works on your hardware.

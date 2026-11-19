@@ -1,0 +1,16 @@
+name: Feedback / Feedback
+description: Tell me what you liked, what confused you or what you would change. / Diga o que gostou, o que confundiu ou o que mudaria.
+labels: [feedback]
+body:
+  - type: textarea
+    id: feedback
+    attributes:
+      label: Your feedback / O seu feedback
+      description: What worked, what did not, what you expected. English or Portuguese. / O que funcionou, o que não, o que esperava.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: CoreForge version / Versão
+      placeholder: "0.1.0"
