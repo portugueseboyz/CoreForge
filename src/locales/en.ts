@@ -103,7 +103,7 @@ const UI: Record<string, string> = {
   "Tecnologia": "Technology",
   "Limite de carga": "Charge limit",
   "Ciclos de carga": "Charge cycles",
-  "Consumo": "Power draw",
+  "Consumo da bateria": "Power draw",
   "Carregando a": "Charging at",
   "Fonte": "Power source",
   "Na bateria": "On battery",
@@ -294,7 +294,6 @@ const UI: Record<string, string> = {
   "Valor": "Value",
   "Mín": "Min",
   "Máx": "Max",
-  "Testes de carga": "Load tests",
   "Disco e rede": "Disk and network",
   "Sistema, placa-mãe, processador, memória, vídeo e discos desta máquina.": "System, motherboard, processor, memory, graphics and disks of this machine.",
   "Ficha da placa de vídeo (NVIDIA, AMD e Intel) e leituras ao vivo.": "Graphics card details (NVIDIA, AMD and Intel) and live readings.",
@@ -321,7 +320,6 @@ const UI: Record<string, string> = {
   "ao vivo": "live",
   "Informações do sistema": "System information",
   "Sensores": "Sensors",
-  "Stress test": "Stress test",
   "Bench CPU": "CPU bench",
   "Disco": "Disk",
   "Rede": "Network",
@@ -355,7 +353,7 @@ const UI: Record<string, string> = {
 };
 
 Object.assign(UI, {
-  "FPS (opcional): este app não injeta no jogo. Com o MangoHud instalado, coloque esta opção de inicialização no jogo (Steam: Propriedades > Opções de inicialização) e marque FPS (MangoHud) abaixo; sem log ativo o FPS mostra —.": "FPS (optional): this app does not inject into the game. With MangoHud installed, add this launch option to the game (Steam: Properties > Launch Options) and tick FPS (MangoHud) below; with no active log FPS shows —.",
+  "FPS (opcional): este app não injeta no jogo. Com o MangoHud instalado, coloque esta opção de inicialização no jogo (Steam: Propriedades > Opções de inicialização) e marque FPS (MangoHud) abaixo; sem log ativo o FPS mostra — (a pasta de log é fixa; ~ marca um valor de alguns segundos atrás).": "FPS (optional): this app does not inject into the game. With MangoHud installed, add this launch option to the game (Steam: Properties > Launch Options) and tick FPS (MangoHud) below; with no active log FPS shows — (the log folder is fixed; ~ marks a value a few seconds old).",
 });
 
 export const EXACT: Record<string, string> = { ...UI, ...BACKEND_EXACT };

@@ -459,7 +459,7 @@ function GpuStress() {
 
 type Metrics = { gpu_name: string | null; gpu_util: number | null; gpu_temp: number | null; gpu_clock: number | null; gpu_mem_clock: number | null;
   gpu_power_w: number | null; gpu_fan: number | null; vram_used_mb: number | null; vram_total_mb: number | null; gpu_throttle: string | null;
-  cpu_load: number | null; cpu_busiest: number | null; cpu_temp: number | null; cpu_clock_mhz: number | null; ram_used_gb: number | null; ram_total_gb: number | null; fps: number | null };
+  cpu_load: number | null; cpu_busiest: number | null; cpu_temp: number | null; cpu_clock_mhz: number | null; ram_used_gb: number | null; ram_total_gb: number | null; fps: number | null; fps_stale: boolean };
 
 const n0 = (v: number | null | undefined, u: string, d = 0) => (v == null ? "—" : `${v.toFixed(d)} ${u}`);
 // Itens do overlay: chave, rótulo, formatador. (FPS só vem do log do MangoHud, se ativo; ver a página Overlay.)
@@ -470,7 +470,7 @@ const OVERLAY_ITEMS: [string, string, (m: Metrics) => string][] = [
   ["vram", "VRAM", (m) => (m.vram_used_mb == null ? "—" : `${(m.vram_used_mb / 1024).toFixed(1)} / ${((m.vram_total_mb ?? 0) / 1024).toFixed(0)} GB`)],
   ["cpu_load", tr("CPU uso"), (m) => n0(m.cpu_load, "%")], ["cpu_busiest", tr("CPU núcleo mais ocupado"), (m) => n0(m.cpu_busiest, "%")],
   ["cpu_temp", tr("CPU temperatura"), (m) => n0(m.cpu_temp, "°C")], ["cpu_clock", tr("CPU clock médio"), (m) => n0(m.cpu_clock_mhz, "MHz")],
-  ["fps", "FPS (MangoHud)", (m) => n0(m.fps, "")],
+  ["fps", "FPS (MangoHud)", (m) => n0(m.fps, "") + (m.fps != null && m.fps_stale ? " ~" : "")],
   ["ram", "RAM", (m) => (m.ram_used_gb == null ? "—" : `${m.ram_used_gb.toFixed(1)} / ${(m.ram_total_gb ?? 0).toFixed(0)} GB`)],
 ];
 const DEFAULT_ITEMS = ["gpu_util", "gpu_temp", "vram", "cpu_load", "cpu_temp", "ram"];
@@ -522,7 +522,7 @@ function OverlaySettings() {
     <>
       <section className="card form">
         <p className="dim">{tr("Janela transparente, sempre no topo e que ignora cliques, com as leituras escolhidas. Os itens podem ser trocados com o overlay aberto. No Wayland o compositor pode não manter a janela acima de jogos em tela cheia; em janela sem borda ou no X11 costuma funcionar.")}</p>
-        <p className="dim">{tr("FPS (opcional): este app não injeta no jogo. Com o MangoHud instalado, coloque esta opção de inicialização no jogo (Steam: Propriedades > Opções de inicialização) e marque FPS (MangoHud) abaixo; sem log ativo o FPS mostra —.")}</p>
+        <p className="dim">{tr("FPS (opcional): este app não injeta no jogo. Com o MangoHud instalado, coloque esta opção de inicialização no jogo (Steam: Propriedades > Opções de inicialização) e marque FPS (MangoHud) abaixo; sem log ativo o FPS mostra — (a pasta de log é fixa; ~ marca um valor de alguns segundos atrás).")}</p>
         <input readOnly className="mono" style={{ width: "100%" }} value={hint} onFocus={(e) => e.currentTarget.select()} />
         <div className="grid2">{OVERLAY_ITEMS.map(([k, label]) => (
           <label key={k} className="check"><input type="checkbox" checked={items.includes(k)} onChange={() => toggle(k)} /> {tr(label)}</label>
@@ -1384,7 +1384,7 @@ function Power() {
             <h2>{tr("Bateria")} {p.batteries.length > 1 ? b.name : ""}</h2>
             <Meter label={tr(BAT_STATUS[b.status] ?? (b.status || "—"))} value={b.percent} text={b.percent != null ? `${b.percent.toFixed(0)}%` : "—"} />
             {row("Fonte", p.ac_online == null ? "—" : p.ac_online ? tr("Na tomada") : tr("Na bateria"))}
-            {b.power_w != null && row(b.status === "Charging" ? "Carregando a" : "Consumo", `${b.power_w.toFixed(1)} W`)}
+            {b.power_w != null && row(b.status === "Charging" ? "Carregando a" : "Consumo da bateria", `${b.power_w.toFixed(1)} W`)}
             {b.health_pct != null && row("Saúde", `${b.health_pct.toFixed(0)}%`)}
             {b.cycles != null && row("Ciclos de carga", String(b.cycles))}
             {b.limit_pct != null && row("Limite de carga", `${b.limit_pct}%`)}

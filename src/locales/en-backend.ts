@@ -66,7 +66,7 @@ export const BACKEND_EXACT: Record<string, string> = {
   "RPG": "RPG",
   "MOBA": "MOBA",
   "FPS": "FPS",
-  "Trava do jogo": "Game cap",
+  "Trava do jogo": "Game FPS cap",
   "Compute capability": "Compute capability",
   "Núcleos CUDA": "CUDA cores",
   "Memória": "Memory",
