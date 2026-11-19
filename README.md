@@ -1,3 +1,5 @@
+English | [Português](README.pt-BR.md)
+
 # CoreForge
 
 > Early release (0.1). Tested on one desktop (NVIDIA GPU, Nuvoton nct6798 fan controller). Fan control, laptops, AMD/Intel GPUs and other game stores are implemented but not yet verified on other hardware. No installer yet: run from source.
