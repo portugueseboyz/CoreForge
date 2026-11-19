@@ -1,6 +1,6 @@
 //! Informações do sistema e sensores no Linux: /etc/os-release, /proc, /sys (dmi, hwmon, cpufreq), lspci e lsblk.
 use serde::Serialize;
-use std::{collections::HashMap, fs, process::Command, sync::Mutex};
+use std::{collections::HashMap, fs, path::Path, process::Command, sync::Mutex};
 
 #[derive(Serialize, Default)]
 pub struct InfoNode {
@@ -153,10 +153,10 @@ pub(crate) fn pairs(line: &str) -> HashMap<String, String> {
 #[derive(Default)]
 pub struct CpuPrev(Mutex<Vec<(u64, u64)>>);
 
-#[tauri::command]
-pub fn sensors(prev: tauri::State<CpuPrev>) -> Vec<Sensor> {
+/// Sensores de uma pasta tipo /sys/class/hwmon (aceita uma falsa nos testes): temperatura, ventoinhas, tensão, consumo e corrente.
+fn hwmon_sensors(root: &Path) -> Vec<Sensor> {
     let mut out = vec![];
-    let mut hw: Vec<_> = fs::read_dir("/sys/class/hwmon").into_iter().flatten().flatten().map(|e| e.path()).collect();
+    let mut hw: Vec<_> = fs::read_dir(root).into_iter().flatten().flatten().map(|e| e.path()).collect();
     hw.sort();
     for dir in hw {
         let base = dir.file_name().unwrap().to_string_lossy().into_owned();
@@ -179,6 +179,12 @@ pub fn sensors(prev: tauri::State<CpuPrev>) -> Vec<Sensor> {
             out.push(Sensor { id: format!("{chip}/{p}/{base}"), hardware: chip.clone(), category, name: label, value: raw / div, unit });
         }
     }
+    out
+}
+
+#[tauri::command]
+pub fn sensors(prev: tauri::State<CpuPrev>) -> Vec<Sensor> {
+    let mut out = hwmon_sensors(Path::new("/sys/class/hwmon"));
 
     let stat = read("/proc/stat").unwrap_or_default();
     let mut prev = prev.0.lock().unwrap_or_else(|e| e.into_inner());
@@ -209,9 +215,11 @@ pub fn sensors(prev: tauri::State<CpuPrev>) -> Vec<Sensor> {
 }
 
 /// Temperatura principal da CPU em °C: Package/Tctl/Tdie, senão a maior entre os sensores do chip da CPU.
-pub fn cpu_temp() -> Option<f64> {
+pub fn cpu_temp() -> Option<f64> { cpu_temp_at(Path::new("/sys/class/hwmon")) }
+
+fn cpu_temp_at(root: &Path) -> Option<f64> {
     let mut best: Option<f64> = None;
-    for e in fs::read_dir("/sys/class/hwmon").ok()?.flatten() {
+    for e in fs::read_dir(root).ok()?.flatten() {
         let d = e.path();
         let chip = read(&format!("{}/name", d.display())).unwrap_or_default();
         if !["k10temp", "coretemp", "zenpower", "cpu_thermal"].contains(&chip.as_str()) { continue; }
@@ -235,5 +243,74 @@ mod tests {
         assert!(n.iter().all(|x| !x.children.is_empty()));
         assert_eq!(super::pairs(r#"NAME="sda" MODEL="A B" SIZE="5""#)["MODEL"], "A B");
         assert_eq!(super::split_quoted(r#"01:00.0 "VGA" "NVIDIA Corp""#), vec!["01:00.0", "VGA", "NVIDIA Corp"]);
+    }
+    use super::*;
+    fn w(p: &std::path::Path, c: &str) { fs::create_dir_all(p.parent().unwrap()).unwrap(); fs::write(p, c).unwrap(); }
+    fn tmp(tag: &str) -> std::path::PathBuf { let r = std::env::temp_dir().join(format!("cf_{tag}_{}", std::process::id())); let _ = fs::remove_dir_all(&r); r }
+
+    #[test]
+    fn hwmon_sensors_units_labels_and_junk() {
+        let root = tmp("sens");
+        let nct = root.join("hwmon0");
+        w(&nct.join("name"), "nct6798\n"); w(&nct.join("in0_input"), "1008\n"); w(&nct.join("in0_label"), "Vcore\n"); w(&nct.join("fan2_input"), "745\n");
+        w(&nct.join("temp1_input"), "35500\n"); w(&nct.join("temp1_max"), "99000\n"); // *_max não é leitura
+        w(&nct.join("intrusion0_alarm"), "0"); w(&nct.join("pwm1"), "10"); // fora das categorias
+        let amd = root.join("hwmon1");
+        w(&amd.join("name"), "amdgpu"); w(&amd.join("power1_input"), "98000000"); w(&amd.join("power2_input"), "x"); w(&amd.join("curr1_input"), "1500"); w(&amd.join("temp2_input"), "");
+        w(&root.join("hwmon2/temp1_input"), "-5000"); // sem name: usa hwmon2 e aceita negativo
+        w(&root.join("hwmon3/name"), "empty\n");
+        let s = hwmon_sensors(&root);
+        let g = |id: &str| s.iter().find(|x| x.id == id).unwrap_or_else(|| panic!("{id}: {:?}", s.iter().map(|x| &x.id).collect::<Vec<_>>()));
+        let v = g("nct6798/in0/hwmon0");
+        assert_eq!((v.category, v.unit, v.value, v.name.as_str()), ("Tensão", "V", 1.008, "Vcore"));
+        assert_eq!((g("nct6798/fan2/hwmon0").value, g("nct6798/fan2/hwmon0").name.as_str(), g("nct6798/fan2/hwmon0").unit), (745.0, "fan2", "RPM"));
+        assert_eq!(g("nct6798/temp1/hwmon0").value, 35.5);
+        assert_eq!(g("amdgpu/power1/hwmon1").value, 98.0);
+        assert_eq!(g("amdgpu/curr1/hwmon1").value, 1.5);
+        assert_eq!(g("hwmon2/temp1/hwmon2").value, -5.0);
+        assert!(s.iter().all(|x| x.id != "amdgpu/temp2/hwmon1" && !x.id.contains("intrusion") && !x.id.contains("empty")));
+        assert_eq!(s.len(), 6);
+        assert!(hwmon_sensors(std::path::Path::new("/nao/existe")).is_empty());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn cpu_temp_picks_package_then_max_per_vendor() {
+        let root = tmp("cput");
+        assert_eq!(cpu_temp_at(&root), None); // pasta inexistente
+        w(&root.join("hwmon0/name"), "amdgpu"); w(&root.join("hwmon0/temp1_input"), "99000"); // GPU não conta
+        assert_eq!(cpu_temp_at(&root), None);
+        // coretemp: Package vence mesmo não sendo o maior
+        w(&root.join("hwmon1/name"), "coretemp"); w(&root.join("hwmon1/temp1_input"), "50000"); w(&root.join("hwmon1/temp1_label"), "Package id 0");
+        w(&root.join("hwmon1/temp2_input"), "70000"); w(&root.join("hwmon1/temp2_label"), "Core 0");
+        assert_eq!(cpu_temp_at(&root), Some(50.0));
+        let _ = fs::remove_dir_all(&root);
+        // k10temp com Tctl
+        w(&root.join("hwmon0/name"), "k10temp\n"); w(&root.join("hwmon0/temp1_input"), "61250\n"); w(&root.join("hwmon0/temp1_label"), "Tctl\n");
+        assert_eq!(cpu_temp_at(&root), Some(61.25));
+        let _ = fs::remove_dir_all(&root);
+        // sem rótulos: o maior; valor vazio ou ruim é pulado
+        w(&root.join("hwmon0/name"), "cpu_thermal"); w(&root.join("hwmon0/temp1_input"), "40000"); w(&root.join("hwmon0/temp2_input"), "45000"); w(&root.join("hwmon0/temp3_input"), ""); w(&root.join("hwmon0/temp4_input"), "abc");
+        assert_eq!(cpu_temp_at(&root), Some(45.0));
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn text_helpers_odd_inputs() {
+        assert_eq!(gb(None), "—");
+        assert_eq!(gb(Some(&"16384000 kB".to_string())), "15.6 GB");
+        assert_eq!(gb(Some(&"lixo".to_string())), "—");
+        let m = kv("model name\t: AMD Ryzen 5\nflags: a b\nsem separador\nvazio:\n", ':');
+        assert_eq!((m["model name"].as_str(), m["flags"].as_str(), m["vazio"].as_str(), m.len()), ("AMD Ryzen 5", "a b", "", 3));
+        let os = kv("PRETTY_NAME=\"Ubuntu 24.04 LTS\"\nID=ubuntu\n", '=');
+        assert_eq!(os["PRETTY_NAME"], "Ubuntu 24.04 LTS");
+        // lsblk -P: valores vazios, aspas sem fechar e linha vazia
+        let p = pairs(r#"NAME="nvme0n1" MODEL="" SIZE="500107862016" ROTA="0" TRAN="nvme" TYPE="disk""#);
+        assert_eq!((p["MODEL"].as_str(), p["TRAN"].as_str(), p.len()), ("", "nvme", 6));
+        assert!(pairs("").is_empty());
+        assert_eq!(pairs(r#"NAME="sda" MODEL="aberto"#).len(), 1);
+        // lspci -mm: palavras soltas e campos vazios entre aspas somem
+        assert_eq!(split_quoted(r#"00:02.0 "VGA compatible controller" "Intel Corporation" "UHD Graphics 630" -r02 "" """#), vec!["00:02.0", "VGA compatible controller", "Intel Corporation", "UHD Graphics 630", "-r02"]);
+        assert!(split_quoted("").is_empty());
     }
 }

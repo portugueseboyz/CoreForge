@@ -180,4 +180,47 @@ mod tests {
     }
     #[test]
     fn this_machine() { println!("{:?}", gpus().iter().map(|g| (&g.name, g.vendor)).collect::<Vec<_>>()); }
+    #[test]
+    fn odd_trees_missing_files_units_and_fallbacks() {
+        let root = std::env::temp_dir().join(format!("cf_gpu2_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        // AMD sem hwmon nem gpu_busy_percent: tudo None, nada de pânico
+        let bare = root.join("class/drm/card0/device");
+        w(&bare.join("vendor"), "0x1002\n");
+        // AMD com hwmon: power1_input no lugar do average, pwm sem pwm1_max (base 255), freq*_input em Hz, pp_dpm sem "*", valores vazios
+        let amd = root.join("class/drm/card1/device");
+        w(&amd.join("vendor"), "0x1002"); w(&amd.join("gpu_busy_percent"), "\n"); w(&amd.join("pp_dpm_sclk"), "0: 300Mhz\n1: 2000Mhz\n"); w(&amd.join("mem_info_vram_total"), "lixo");
+        let hw = amd.join("hwmon/hwmon2");
+        w(&hw.join("power1_input"), "45500000"); w(&hw.join("pwm1"), "255"); w(&hw.join("freq1_input"), "1800000000"); w(&hw.join("freq2_input"), "875000000"); w(&hw.join("temp1_input"), "");
+        // Intel xe: frequência em device/tile0/gt0/freq0/cur_freq, sem gt_cur_freq_mhz
+        let xe = root.join("class/drm/card2/device");
+        w(&xe.join("vendor"), "0x8086"); w(&xe.join("tile0/gt0/freq0/cur_freq"), "1200\n");
+        // Intel i915 só com máximo
+        w(&root.join("class/drm/card3/device/vendor"), "0x8086"); w(&root.join("class/drm/card3/gt_max_freq_mhz"), "1100\n");
+        let g = discover(&root, |_| None);
+        assert_eq!(g.len(), 4);
+        assert_eq!(g[0].name, "GPU AMD"); // sem nome do lspci: genérico
+        assert_eq!(sample(&g[0]), Sample::default());
+        let a = sample(&g[1]);
+        assert_eq!((a.util, a.temp, a.power_w, a.fan_pct, a.fan_rpm), (None, None, Some(45.5), Some(100), None));
+        assert_eq!((a.core_mhz, a.mem_mhz, a.vram_total_mb), (Some(1800), Some(875), None)); // sem "*", cai para freq*_input
+        assert_eq!(sample(&g[2]).core_mhz, Some(1200));
+        assert_eq!(sample(&g[3]).core_mhz, None);
+        // ficha estática: máximo vem do maior pp_dpm_sclk / gt_max_freq_mhz; sem PCIe nem VRAM, os grupos somem
+        let n = info_node(&g[1]);
+        assert!(n.children.iter().all(|c| c.header != "Memória" && c.header != "PCIe"));
+        assert!(n.children.iter().any(|c| c.header == "Clocks e energia"));
+        assert!(info_node(&g[3]).children.iter().any(|c| c.header == "Clocks e energia"));
+        assert_eq!(info_node(&g[0]).children.len(), 1); // só "Geral"
+        assert!(live_items(&g[0]).is_empty());
+        assert!(discover(&root.join("nada"), |_| None).is_empty());
+        let _ = fs::remove_dir_all(root);
+    }
+    #[test]
+    fn dpm_current_parses_marker_and_case() {
+        let root = std::env::temp_dir().join(format!("cf_dpm_{}", std::process::id()));
+        w(&root.join("a"), "0: 500MHz\n1: 1700mhz *\n"); w(&root.join("b"), ""); w(&root.join("c"), "0: abc *\n");
+        assert_eq!((dpm_current(&root.join("a")), dpm_current(&root.join("b")), dpm_current(&root.join("c")), dpm_current(&root.join("d"))), (Some(1700), None, None, None));
+        let _ = fs::remove_dir_all(root);
+    }
 }

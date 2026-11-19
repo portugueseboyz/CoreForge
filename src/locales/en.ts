@@ -195,6 +195,7 @@ const UI: Record<string, string> = {
   "Gráficos": "Graphics",
   "Baixo": "Low",
   "Médio": "Medium",
+  "Alto": "High",
   "Desligado": "Off",
   "Jogo": "Game",
   "Gênero": "Genre",

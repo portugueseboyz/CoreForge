@@ -142,9 +142,12 @@ fn mode_text(enable: Option<u32>) -> String {
     match enable { Some(0) => "Sem controle (100 %)".into(), Some(1) => "Manual".into(), Some(_) => "Automático".into(), None => "—".into() }
 }
 
-pub(crate) fn scan_hwmon() -> Vec<Channel> {
-    let (mut out, maps) = (vec![], load_map());
-    let mut dirs: Vec<_> = fs::read_dir("/sys/class/hwmon").into_iter().flatten().flatten().map(|e| e.path()).collect();
+pub(crate) fn scan_hwmon() -> Vec<Channel> { scan_hwmon_at(Path::new("/sys/class/hwmon"), &load_map()) }
+
+/// Varre uma pasta tipo /sys/class/hwmon (aceita uma falsa nos testes) com o mapeamento PWM→ventoinha dado.
+fn scan_hwmon_at(root: &Path, maps: &FanMap) -> Vec<Channel> {
+    let mut out = vec![];
+    let mut dirs: Vec<_> = fs::read_dir(root).into_iter().flatten().flatten().map(|e| e.path()).collect();
     dirs.sort();
     for d in dirs {
         let hw = d.file_name().unwrap().to_string_lossy().into_owned();
@@ -574,5 +577,66 @@ mod tests {
         }
         assert_eq!(pol.matches("<allow_active>auth_admin</allow_active>").count(), 5);
         assert_eq!(pol.matches("<allow_active>auth_admin_keep</allow_active>").count(), 1);
+    }
+    fn w(p: &Path, c: &str) { fs::create_dir_all(p.parent().unwrap()).unwrap(); fs::write(p, c).unwrap(); }
+    fn tmp(tag: &str) -> PathBuf { let r = std::env::temp_dir().join(format!("cf_{tag}_{}", std::process::id())); let _ = fs::remove_dir_all(&r); r }
+    /// Árvore hwmon falsa com vários fabricantes: placa-mãe (nct6775, it87), GPUs (amdgpu, i915) e CPUs (k10temp, coretemp).
+    #[test]
+    fn scan_fake_hwmon_tree_several_vendors() {
+        let root = tmp("fans");
+        let nct = root.join("hwmon0");
+        w(&nct.join("name"), "nct6798\n"); w(&nct.join("pwm1"), "128\n"); w(&nct.join("pwm1_enable"), "5\n"); w(&nct.join("fan1_input"), "1200\n");
+        w(&nct.join("fan1_label"), "CPU Fan\n"); w(&nct.join("fan3_input"), "800\n"); // fan3 sem PWM: só leitura
+        w(&nct.join("pwm2"), "255\n"); w(&nct.join("pwm2_enable"), "1\n");              // pwm2 sem tacômetro de mesmo número
+        let it = root.join("hwmon1");
+        w(&it.join("name"), "it8686\n"); w(&it.join("pwm1"), "oops\n"); w(&it.join("fan1_input"), "\n"); w(&it.join("pwm3"), "51\n"); // vazio/ruído e PWM sem _enable
+        let amd = root.join("hwmon2");
+        w(&amd.join("name"), "amdgpu\n"); w(&amd.join("fan1_input"), "0\n"); w(&amd.join("pwm1"), "102\n"); w(&amd.join("pwm1_enable"), "2\n");
+        for (i, n) in ["k10temp", "coretemp", "i915"].iter().enumerate() { w(&root.join(format!("hwmon{}/name", i + 3)), n); w(&root.join(format!("hwmon{}/temp1_input", i + 3)), "40000"); }
+        fs::create_dir_all(root.join("hwmon9")).unwrap(); // sem name nenhum
+
+        let ch = scan_hwmon_at(&root, &FanMap::new());
+        let by = |id: &str| ch.iter().find(|c| c.id == id).unwrap_or_else(|| panic!("{id} ausente: {:?}", ch.iter().map(|c| &c.id).collect::<Vec<_>>()));
+        let a = by("hwmon/hwmon0/1");
+        assert_eq!((a.rpm, a.controllable, a.mode.as_str(), a.fan), (Some(1200), true, "Automático", Some(1)));
+        assert_eq!(a.percent.map(|p| p.round()), Some(50.0));
+        assert_eq!(a.label, "Placa-mãe (nct6798) · CPU Fan");
+        let b = by("hwmon/hwmon0/2");
+        assert_eq!((b.rpm, b.mode.as_str(), b.label.as_str()), (None, "Manual", "Placa-mãe (nct6798) · Controle PWM 2"));
+        let ro = by("hwmon/hwmon0/fan3");
+        assert_eq!((ro.rpm, ro.controllable, ro.mode.as_str(), ro.pwm), (Some(800), false, "Só leitura", 0));
+        assert!(ro.label.ends_with("Ventoinha 3"));
+        // it87: valor ilegível não vira número; PWM sem _enable não é controlável
+        assert!(!by("hwmon/hwmon1/3").controllable);
+        assert!(ch.iter().all(|c| c.id != "hwmon/hwmon1/1")); // "oops" não é PWM
+        assert!(ch.iter().all(|c| c.id != "hwmon/hwmon1/fan1")); // tacômetro vazio ignorado
+        assert_eq!(by("hwmon/hwmon2/1").label, "GPU AMD · Ventoinha 1"); // fan1 existe: o PWM 1 é associado a ela
+        // CPUs e i915 sem ventoinha não geram canais
+        assert!(ch.iter().all(|c| !["hwmon3", "hwmon4", "hwmon5", "hwmon9"].contains(&c.hw.as_str())));
+        let _ = fs::remove_dir_all(root);
+    }
+    #[test]
+    fn scan_missing_root_and_tested_map() {
+        assert!(scan_hwmon_at(Path::new("/nao/existe/hwmon"), &FanMap::new()).is_empty());
+        let root = tmp("fansmap");
+        let d = root.join("hwmon0");
+        w(&d.join("name"), "nct6775"); w(&d.join("pwm1"), "100"); w(&d.join("pwm2"), "100"); w(&d.join("fan4_input"), "900"); w(&d.join("fan1_input"), "10");
+        let mut m = FanMap::new();
+        m.insert("nct6775".into(), HashMap::from([("1".to_string(), Some(4)), ("2".to_string(), None)]));
+        let ch = scan_hwmon_at(&root, &m);
+        let p1 = ch.iter().find(|c| c.id == "hwmon/hwmon0/1").unwrap();
+        assert_eq!((p1.fan, p1.rpm, p1.tested), (Some(4), Some(900), true));
+        assert!(ch.iter().find(|c| c.id == "hwmon/hwmon0/2").unwrap().label.contains("sem ventoinha"));
+        assert!(ch.iter().any(|c| c.id == "hwmon/hwmon0/fan1")); // fan1 não foi associada a nenhum PWM
+        let _ = fs::remove_dir_all(root);
+    }
+    #[test]
+    fn friendly_names_and_modes() {
+        assert_eq!(friendly_chip("amdgpu"), "GPU AMD");
+        assert_eq!(friendly_chip("xe"), "GPU Intel");
+        assert_eq!(friendly_chip("it8628"), "Placa-mãe (it8628)");
+        assert_eq!(friendly_chip("f71882fg"), "Placa-mãe (f71882fg)");
+        assert_eq!(friendly_chip("coisa"), "coisa");
+        assert_eq!((mode_text(Some(0)).as_str(), mode_text(Some(1)).as_str(), mode_text(Some(2)).as_str(), mode_text(None).as_str()), ("Sem controle (100 %)", "Manual", "Automático", "—"));
     }
 }

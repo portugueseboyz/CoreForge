@@ -4,6 +4,7 @@ import { setInterval } from "./poll";
 import { pushSample } from "./history";
 import { loadRuns, saveRun, RUN_KINDS, type Run } from "./runs";
 import { buildReport } from "./report";
+import { tempLimit, curveX as x, curveY as y, extendCurve } from "./curvemath";
 import { Chart, TEMP_LINES, LOAD_LINES, POWER_LINES, BOTTLENECK_LINES } from "./Chart";
 import { invoke } from "@tauri-apps/api/core";
 import logo from "./assets/logo.svg";
@@ -1286,8 +1287,7 @@ const PRESETS: Record<string, [number, number][]> = {
 };
 
 function CurvePreview({ points }: { points: [number, number][] }) {
-  const x = (t: number) => 8 + ((t - 20) / 90) * 204, y = (p: number) => 102 - (p / 100) * 94;
-  const pts = [[20, points[0]?.[1] ?? 0] as [number, number], ...points, [110, points[points.length - 1]?.[1] ?? 0] as [number, number]];
+  const pts = extendCurve(points);
   return (
     <svg viewBox="0 0 220 110" className="curve-svg" role="img" aria-label={tr("Curva de velocidade")}>
       <path d="M8 8V102H212" fill="none" stroke="var(--line-2)" />
@@ -1430,9 +1430,6 @@ function Meter({ label, value, text }: { label: string; value: number | null; te
     </div>
   );
 }
-
-/** Limite de temperatura (°C) para o alerta; 0 desliga. Fica guardado neste computador. */
-const tempLimit = () => { const v = localStorage.getItem("tempLimit"); return v == null ? 90 : Number(v) || 0; };
 
 function ThermalStrip() {
   const m = useMetrics(1500);

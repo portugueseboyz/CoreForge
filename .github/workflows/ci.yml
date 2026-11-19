@@ -5,14 +5,16 @@ on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    - cron: "0 6 * * 1" # semanal: pega avisos de segurança novos mesmo sem commits
 
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -34,7 +36,28 @@ jobs:
       - run: npm ci
       - name: TypeScript e build do front-end
         run: npm run build
+      - name: Testes do front-end
+        run: npm test
       - name: Testes do Rust
         run: cargo test --manifest-path src-tauri/Cargo.toml
       - name: Clippy
         run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+
+  # Auditorias de dependências: informativas (não derrubam o CI; avisos novos aparecem sem relação com o commit).
+  audit-cargo:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - run: cargo install cargo-audit --locked
+      - run: cargo audit --file src-tauri/Cargo.lock
+
+  audit-npm:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: npm audit --omit=dev --audit-level=high

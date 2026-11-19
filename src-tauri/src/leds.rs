@@ -221,15 +221,14 @@ fn i2c_kind(adapter: &str) -> Option<(&'static str, &'static str)> {
     else { None }
 }
 
-/// Procura hardware que pode ter RGB (USB por fabricante, SMBus/I²C) e diz o que falta: OpenRGB, módulo i2c-dev, permissões.
-#[tauri::command(async)]
-pub fn leds_discover() -> RgbDiscovery {
+/// USB HID com RGB (por fabricante) em `<root>/class/hidraw` (`root` = /sys; aceita uma árvore falsa nos testes).
+fn hid_candidates(root: &std::path::Path, can_open: impl Fn(&str) -> bool) -> Vec<HidCandidate> {
     let mut hid: Vec<HidCandidate> = vec![];
     let mut seen = std::collections::HashSet::new();
-    let mut nodes: Vec<_> = std::fs::read_dir("/sys/class/hidraw").into_iter().flatten().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect();
+    let mut nodes: Vec<_> = std::fs::read_dir(root.join("class/hidraw")).into_iter().flatten().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect();
     nodes.sort();
     for n in &nodes {
-        let ue = read_trim(&format!("/sys/class/hidraw/{n}/device/uevent"));
+        let ue = read_trim(&root.join(format!("class/hidraw/{n}/device/uevent")).to_string_lossy());
         let field = |k: &str| ue.lines().find_map(|l| l.strip_prefix(&format!("{k}=")).map(String::from)).unwrap_or_default();
         let id: Vec<String> = field("HID_ID").split(':').map(|x| x.trim_start_matches('0').to_lowercase()).collect();
         if id.len() != 3 || field("HID_ID").split(':').next() != Some("0003") { continue; } // só USB
@@ -240,13 +239,27 @@ pub fn leds_discover() -> RgbDiscovery {
         if let Some(c) = hid.iter_mut().find(|c| c.vid_pid == vp) { c.accessible |= ok; continue; }
         if seen.insert(vp.clone()) { hid.push(HidCandidate { vid_pid: vp, vendor: (*vendor).into(), name: field("HID_NAME"), accessible: ok }); }
     }
+    hid
+}
+
+/// Barramentos I²C de memória/placa de vídeo em `<root>/class/i2c-dev`.
+fn i2c_buses(root: &std::path::Path, can_open: impl Fn(&str) -> bool) -> Vec<I2cBus> {
     let mut i2c = vec![];
-    let mut buses: Vec<_> = std::fs::read_dir("/sys/class/i2c-dev").into_iter().flatten().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect();
+    let mut buses: Vec<_> = std::fs::read_dir(root.join("class/i2c-dev")).into_iter().flatten().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect();
     buses.sort_by_key(|b| b.trim_start_matches("i2c-").parse::<u32>().unwrap_or(0));
     for b in buses {
-        let adapter = read_trim(&format!("/sys/class/i2c-dev/{b}/name"));
+        let adapter = read_trim(&root.join(format!("class/i2c-dev/{b}/name")).to_string_lossy());
         if let Some((kind, _)) = i2c_kind(&adapter) { let accessible = can_open(&format!("/dev/{b}")); i2c.push(I2cBus { dev: format!("/dev/{b}"), adapter, kind, accessible }); }
     }
+    i2c
+}
+
+/// Procura hardware que pode ter RGB (USB por fabricante, SMBus/I²C) e diz o que falta: OpenRGB, módulo i2c-dev, permissões.
+#[tauri::command(async)]
+pub fn leds_discover() -> RgbDiscovery {
+    let sys = std::path::Path::new("/sys");
+    let hid = hid_candidates(sys, can_open);
+    let i2c = i2c_buses(sys, can_open);
     let i2c_dev_loaded = std::path::Path::new("/sys/module/i2c_dev").exists() || std::fs::read_dir("/dev").into_iter().flatten().flatten().any(|e| e.file_name().to_string_lossy().starts_with("i2c-"));
     let openrgb = match backend() { Some((c, _)) if c == "flatpak" => "Flatpak".into(), Some(_) => "Nativo".into(), None => String::new() };
     let mut hints = vec![];
@@ -371,4 +384,51 @@ mod tests {
     }
     #[test]
     fn status_without_openrgb_is_a_hint() { let s = leds_status(); println!("{} {} {:?} {:?}", s.backend, s.installed, s.devices, s.hints); }
+    fn w(p: &std::path::Path, c: &str) { std::fs::create_dir_all(p.parent().unwrap()).unwrap(); std::fs::write(p, c).unwrap(); }
+
+    #[test]
+    fn hid_candidates_from_fake_sys() {
+        let root = std::env::temp_dir().join(format!("cf_hid_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let ue = |id: &str, name: &str| format!("DRIVER=hid-generic\nHID_ID={id}\nHID_NAME={name}\n");
+        let vendor = RGB_VENDORS[0];
+        w(&root.join("class/hidraw/hidraw0/device/uevent"), &ue(&format!("0003:0000{}:000019AF", vendor.0.to_uppercase()), "Aura LED"));
+        w(&root.join("class/hidraw/hidraw1/device/uevent"), &ue(&format!("0003:0000{}:000019AF", vendor.0.to_uppercase()), "Aura LED")); // mesmo VID:PID: junta
+        w(&root.join("class/hidraw/hidraw2/device/uevent"), &ue("0005:0000046D:0000B023", "Bluetooth"));   // não é USB
+        w(&root.join("class/hidraw/hidraw3/device/uevent"), &ue("0003:0000FFFF:00000001", "Outro"));       // fabricante sem RGB
+        w(&root.join("class/hidraw/hidraw4/device/uevent"), "lixo\n");                                      // uevent ilegível
+        w(&root.join("class/hidraw/hidraw5/device/uevent"), &ue("0003:0000", "curto"));                      // formato errado
+        let h = hid_candidates(&root, |p| p == "/dev/hidraw1");
+        assert_eq!(h.len(), 1);
+        assert_eq!((h[0].vid_pid.as_str(), h[0].vendor.as_str(), h[0].name.as_str(), h[0].accessible), (format!("{}:19af", vendor.0).as_str(), vendor.1, "Aura LED", true));
+        assert!(hid_candidates(&root.join("nada"), |_| true).is_empty());
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn i2c_buses_from_fake_sys_sorted_numerically() {
+        let root = std::env::temp_dir().join(format!("cf_i2c_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        for (n, name) in [(10, "SMBus PIIX4 adapter port 2 at 0b00"), (2, "SMBus I801 adapter at f040"), (1, "AMDGPU DM aux hw bus 0"), (0, "NVIDIA i2c adapter 1 at 1:00.0"), (3, "i915 gmbus dpb"), (4, "")] {
+            w(&root.join(format!("class/i2c-dev/i2c-{n}/name")), &format!("{name}\n"));
+        }
+        let b = i2c_buses(&root, |p| p == "/dev/i2c-2");
+        assert_eq!(b.iter().map(|x| (x.dev.as_str(), x.kind, x.accessible)).collect::<Vec<_>>(),
+            [("/dev/i2c-0", "nvidia", false), ("/dev/i2c-1", "amdgpu", false), ("/dev/i2c-2", "i801", true), ("/dev/i2c-10", "piix4", false)]);
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn tokens_and_listing_edge_cases() {
+        assert_eq!(tokens("Direct [Static] 'Spectrum Cycle'"), [("Direct".to_string(), false), ("Static".into(), true), ("Spectrum Cycle".into(), false)]);
+        assert!(tokens("   ").is_empty());
+        assert_eq!(tokens("'aberto sem fim").len(), 1);
+        assert!(parse_devices("").is_empty());
+        assert!(parse_devices("  Type: Orfã\nsem índice: x\n").is_empty()); // linhas indentadas antes de qualquer dispositivo
+        let d = parse_devices("3: Só nome\n");
+        assert_eq!((d[0].index, d[0].kind.as_str(), d[0].modes.len(), d[0].zones.len()), (3, "", 0, 0));
+        assert_eq!(i2c_kind("AMDGPU DM aux").map(|k| k.0), Some("amdgpu"));
+        assert_eq!(i2c_kind("Radeon i2c bit bus 0x90").map(|k| k.0), Some("amdgpu"));
+        assert!(i2c_kind("").is_none());
+    }
 }

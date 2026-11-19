@@ -29,6 +29,11 @@ pub struct Mount { path: String, source: String, size_gb: f64, free_gb: f64 }
 #[tauri::command(async)]
 pub fn disk_mounts() -> Vec<Mount> {
     let out = Command::new("df").env("LC_ALL", "C").args(["-B1", "--output=source,target,size,avail"]).output().map(|o| String::from_utf8_lossy(&o.stdout).into_owned()).unwrap_or_default();
+    parse_df(&out)
+}
+
+/// Linhas de `df -B1 --output=source,target,size,avail`.
+fn parse_df(out: &str) -> Vec<Mount> {
     let mut seen = std::collections::HashSet::new();
     out.lines().skip(1).filter_map(|l| {
         let f: Vec<&str> = l.split_whitespace().collect();
@@ -202,27 +207,8 @@ fn temp_sysfs(dev: &str) -> Option<f64> {
     None
 }
 
-#[tauri::command(async)]
-pub fn disk_health() -> Vec<DiskHealth> {
-    let out = Command::new("lsblk").args(["-dn", "-b", "-P", "-o", "NAME,MODEL,SERIAL,SIZE,ROTA,TRAN,TYPE"]).output().map(|o| String::from_utf8_lossy(&o.stdout).into_owned()).unwrap_or_default();
-    let mut cards = vec![];
-    for line in out.lines() {
-        let k = crate::sysinfo::pairs(line);
-        if k.get("TYPE").map(String::as_str) != Some("disk") { continue; }
-        let name = k["NAME"].clone();
-        let tran = k.get("TRAN").cloned().unwrap_or_default();
-        let kind = if k.get("ROTA").map(String::as_str) == Some("1") { "HDD" } else if tran == "nvme" { "NVMe" } else { "SSD" };
-        let size = k.get("SIZE").and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
-        let mut c = DiskHealth {
-            name: format!("{} (/dev/{name})", k.get("MODEL").map(|s| s.trim()).unwrap_or("Disco")),
-            meta: format!("{kind} · {:.0} GB · {}", size / 1e9, if tran.is_empty() { "—" } else { &tran }),
-            serial: k.get("SERIAL").cloned().unwrap_or_default(), verdict: "unknown", ..Default::default()
-        };
-        let mut bad: Vec<String> = vec![];
-        let mut warn: Vec<String> = vec![];
-        let mut have_smart = false;
-        if let Some(j) = smart(&name) {
-            have_smart = true;
+/// Interpreta o JSON do `smartctl -j` (SATA e NVMe): métricas legíveis e motivos de alerta (`warn`) ou críticos (`bad`).
+fn apply_smart(j: &serde_json::Value, c: &mut DiskHealth, bad: &mut Vec<String>, warn: &mut Vec<String>) {
             match j["smart_status"]["passed"].as_bool() {
                 Some(true) => c.metrics.push(("Autoavaliação SMART".into(), "Aprovado".into())),
                 Some(false) => { c.metrics.push(("Autoavaliação SMART".into(), "REPROVADO".into())); bad.push("O disco reprovou na autoavaliação SMART".into()); }
@@ -245,6 +231,30 @@ pub fn disk_health() -> Vec<DiskHealth> {
                 c.metrics.push((label.into(), raw.to_string()));
                 if raw > 0 && matches!(id, 5 | 197 | 198) { bad.push(format!("{label}: {raw}")); }
             }
+}
+
+#[tauri::command(async)]
+pub fn disk_health() -> Vec<DiskHealth> {
+    let out = Command::new("lsblk").args(["-dn", "-b", "-P", "-o", "NAME,MODEL,SERIAL,SIZE,ROTA,TRAN,TYPE"]).output().map(|o| String::from_utf8_lossy(&o.stdout).into_owned()).unwrap_or_default();
+    let mut cards = vec![];
+    for line in out.lines() {
+        let k = crate::sysinfo::pairs(line);
+        if k.get("TYPE").map(String::as_str) != Some("disk") { continue; }
+        let name = k["NAME"].clone();
+        let tran = k.get("TRAN").cloned().unwrap_or_default();
+        let kind = if k.get("ROTA").map(String::as_str) == Some("1") { "HDD" } else if tran == "nvme" { "NVMe" } else { "SSD" };
+        let size = k.get("SIZE").and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
+        let mut c = DiskHealth {
+            name: format!("{} (/dev/{name})", k.get("MODEL").map(|s| s.trim()).unwrap_or("Disco")),
+            meta: format!("{kind} · {:.0} GB · {}", size / 1e9, if tran.is_empty() { "—" } else { &tran }),
+            serial: k.get("SERIAL").cloned().unwrap_or_default(), verdict: "unknown", ..Default::default()
+        };
+        let mut bad: Vec<String> = vec![];
+        let mut warn: Vec<String> = vec![];
+        let mut have_smart = false;
+        if let Some(j) = smart(&name) {
+            have_smart = true;
+            apply_smart(&j, &mut c, &mut bad, &mut warn);
         } else {
             if let Some(t) = temp_sysfs(&name) { c.metrics.push(("Temperatura".into(), format!("{t:.0} °C"))); if t >= 70.0 { warn.push(format!("Temperatura alta ({t:.0} °C)")); } }
             c.reasons.push(format!("SMART indisponível: instale o smartmontools ({}) e abra o app com permissão de leitura do disco.", crate::fans::install_hint("smartmontools")));
@@ -271,4 +281,48 @@ mod tests {
     }
     #[test]
     fn health_lists_disks() { for c in disk_health() { println!("{} {} {:?}", c.name, c.verdict, c.metrics); } }
+    #[test]
+    fn parse_df_filters_and_dedups() {
+        let out = "Filesystem 1B-blocks Avail Use%\n/dev/nvme0n1p2 /               500000000000 200000000000\n/dev/nvme0n1p2 /home           500000000000 200000000000\n/dev/nvme0n1p1 /boot/efi 500000000 100000000\ntmpfs /tmp 8000000000 8000000000\n/dev/sdb1 /snap/core 100 0\n/dev/sdc1 /mnt/pequeno 100000000000 1000000000\n/dev/sdd1 /mnt/x lixo 5\n/dev/sde1\n";
+        let m = parse_df(out);
+        assert_eq!(m.len(), 1, "{:?}", m.iter().map(|x| &x.path).collect::<Vec<_>>());
+        assert_eq!((m[0].path.as_str(), m[0].source.as_str(), m[0].size_gb, m[0].free_gb), ("/", "/dev/nvme0n1p2", 500.0, 200.0));
+        assert!(parse_df("").is_empty());
+    }
+    fn health(json: &str) -> (DiskHealth, Vec<String>, Vec<String>) {
+        let (mut c, mut bad, mut warn) = (DiskHealth::default(), vec![], vec![]);
+        apply_smart(&serde_json::from_str(json).unwrap(), &mut c, &mut bad, &mut warn);
+        (c, bad, warn)
+    }
+    fn metric<'a>(c: &'a DiskHealth, k: &str) -> Option<&'a str> { c.metrics.iter().find(|m| m.0 == k).map(|m| m.1.as_str()) }
+    #[test]
+    fn smartctl_nvme_healthy_and_worn() {
+        let ok = r#"{"smart_status":{"passed":true},"temperature":{"current":41},"power_on_time":{"hours":1234},
+            "nvme_smart_health_information_log":{"percentage_used":3,"available_spare":100,"media_errors":0,"data_units_written":2000000,"power_cycles":88,"unsafe_shutdowns":4}}"#;
+        let (c, bad, warn) = health(ok);
+        assert!(bad.is_empty() && warn.is_empty());
+        assert_eq!((metric(&c, "Autoavaliação SMART"), metric(&c, "Temperatura"), metric(&c, "Horas ligado"), metric(&c, "Vida consumida")), (Some("Aprovado"), Some("41 °C"), Some("1234 h"), Some("3 %")));
+        assert_eq!((metric(&c, "Total gravado"), metric(&c, "Desligamentos inseguros")), (Some("1.0 TB"), Some("4")));
+        let worn = r#"{"smart_status":{"passed":false},"temperature":{"current":75},"nvme_smart_health_information_log":{"percentage_used":95,"available_spare":5,"media_errors":2}}"#;
+        let (c, bad, warn) = health(worn);
+        assert_eq!(bad.len(), 4); // reprovado, vida, reserva, erros de mídia
+        assert_eq!(warn, ["Temperatura alta (75 °C)"]);
+        assert_eq!(metric(&c, "Autoavaliação SMART"), Some("REPROVADO"));
+        let (_, bad, warn) = health(r#"{"nvme_smart_health_information_log":{"percentage_used":70}}"#);
+        assert!(bad.is_empty() && warn == ["70 % da vida útil consumida"]);
+    }
+    #[test]
+    fn smartctl_sata_attributes_and_missing_fields() {
+        let sata = r#"{"smart_status":{"passed":true},"ata_smart_attributes":{"table":[
+            {"id":5,"raw":{"value":8}},{"id":9,"raw":{"value":100}},{"id":197,"raw":{"value":0}},{"id":199,"raw":{"value":3}},{"id":198}]}}"#;
+        let (c, bad, warn) = health(sata);
+        assert_eq!(bad, ["Setores realocados: 8"]); // CRC (199) só informa; 197 em zero não alerta
+        assert!(warn.is_empty());
+        assert_eq!((metric(&c, "Erros de CRC"), metric(&c, "Setores pendentes"), metric(&c, "Setores incorrigíveis")), (Some("3"), Some("0"), Some("0")));
+        assert!(c.metrics.iter().all(|m| m.0 != "Temperatura"));
+        let (c, bad, warn) = health("{}");
+        assert!(c.metrics.is_empty() && bad.is_empty() && warn.is_empty());
+        let (c, _, _) = health(r#"{"smart_status":{},"nvme_smart_health_information_log":[]}"#);
+        assert!(c.metrics.is_empty()); // tipos inesperados são ignorados
+    }
 }
