@@ -153,7 +153,7 @@ pub(crate) fn pairs(line: &str) -> HashMap<String, String> {
 #[derive(Default)]
 pub struct CpuPrev(Mutex<Vec<(u64, u64)>>);
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn sensors(prev: tauri::State<CpuPrev>) -> Vec<Sensor> {
     let mut out = vec![];
     let mut hw: Vec<_> = fs::read_dir("/sys/class/hwmon").into_iter().flatten().flatten().map(|e| e.path()).collect();

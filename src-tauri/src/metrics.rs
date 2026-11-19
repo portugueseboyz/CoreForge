@@ -18,7 +18,7 @@ pub struct Metrics {
     fps: Option<f64>, fps_stale: bool,
 }
 
-#[tauri::command]
+#[tauri::command(async)] // fora da thread principal: lê NVML e /proc a cada segundo
 #[allow(clippy::redundant_closure_call)] // o closure `load` é usado duas vezes (total e núcleo mais ocupado)
 pub fn live_metrics(st: tauri::State<MetricsState>) -> Metrics {
     let mut m = Metrics::default();
