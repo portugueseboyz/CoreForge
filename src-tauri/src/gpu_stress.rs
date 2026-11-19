@@ -145,6 +145,7 @@ mod tests {
     use super::*;
     // Roda 4 s na GPU real (se houver Vulkan) e confere que mediu trabalho.
     #[test]
+    #[ignore = "precisa de Vulkan e GPU reais; rode com --ignored"]
     fn runs_briefly() {
         let st = Mutex::new(GpuStressStatus::default());
         let stop = AtomicBool::new(false);

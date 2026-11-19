@@ -350,6 +350,7 @@ mod tests {
         assert!(i2c_kind("i915 gmbus dpb").is_none());
     }
     #[test]
+    #[ignore = "precisa de uma GPU real; rode com --ignored"]
     fn gpu_identified_on_this_machine() {
         let g = scan_gpus();
         for x in &g { println!("{} · {} · {} · sub {} ({}) · {:?} · acesso {}", x.name, x.slot, x.ids, x.subsystem, x.board_maker, x.i2c_buses, x.i2c_accessible); }
