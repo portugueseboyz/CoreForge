@@ -40,6 +40,7 @@ const checks = [
   { id: "rgb", title: "LEDs RGB", status: "ok", detail: "OpenRGB instalado e com acesso aos dispositivos encontrados.", fix: null }];
 const idle = { running: false, phase: "", progress: 0, fps_now: 0, frames: 0, adapter: "", error: "", result: null, rows: [], passes: 0, elapsed_s: 0 };
 const answers: Record<string, unknown> = {
+  update_check: { current: "0.1.0", latest: "0.2.0", url: "", notes_excerpt: "", update_available: true, known: true }, update_open: null,
   cleanup_scan: [{ id: "thumbs", label: "Miniaturas de imagens", bytes: 48e6, cleanable: true, hint: "" }, { id: "trash", label: "Lixeira", bytes: 0, cleanable: true, hint: "" }, { id: "cache", label: "Cache dos programas (~/.cache)", bytes: 2.4e9, cleanable: true, hint: "Os programas recriam o que precisarem; o primeiro uso depois pode ser mais lento." },
     { id: "pkg", label: "Cache de pacotes do sistema", bytes: 1.1e9, cleanable: false, hint: "Exige root; rode no terminal: sudo apt clean (ou pacman -Sc / dnf clean all)" }, { id: "journal", label: "Logs do sistema (journal)", bytes: 0, cleanable: false, hint: "Exige root; rode no terminal: sudo journalctl --vacuum-size=200M" },
     { id: "kernels", label: "Kernels antigos", bytes: 0, cleanable: false, hint: "Nenhum kernel antigo encontrado (ou o sistema não usa dpkg)." }], cleanup_run: 48e6,

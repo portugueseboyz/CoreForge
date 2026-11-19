@@ -10,6 +10,7 @@ import { Cleanup, CpuDetails, Throttle } from "./Extras";
 import { Chart, TEMP_LINES, LOAD_LINES, POWER_LINES, BOTTLENECK_LINES } from "./Chart";
 import { invoke } from "@tauri-apps/api/core";
 import logo from "./assets/logo.svg";
+import { UpdateBanner, UpdateSettings } from "./update";
 import "./App.css";
 
 type InfoNode = { header: string; value: string; children: InfoNode[] };
@@ -1153,12 +1154,13 @@ function Settings() {
         <label className="dim">
           <input type="checkbox" checked={keep} onChange={(e) => { setKeep(e.target.checked); localStorage.setItem("keepTray", e.target.checked ? "1" : "0"); invoke("tray_close_set", { on: e.target.checked }); }} /> {tr("Manter na bandeja ao fechar")}
         </label>
+        <UpdateSettings />
         <span className="dim">{tr("Idioma")}</span>
         <div className="langs" role="group" aria-label="Language">
           {(["en", "pt"] as const).map((l) => <button key={l} className={l === lang ? "active" : ""} aria-pressed={l === lang} onClick={() => l !== lang && setLang(l)}>{l.toUpperCase()}</button>)}
         </div>
       </div>
-    <p className="dim hint">{tr("Avisa quando a CPU ou a GPU passa desse valor. 0 desliga.")} {tr("Fechar a janela deixa o app na bandeja do sistema, e os alertas continuam. Precisa de bandeja no desktop.")}</p>
+    <p className="dim hint">{tr("Avisa quando a CPU ou a GPU passa desse valor. 0 desliga.")} {tr("Fechar a janela deixa o app na bandeja do sistema, e os alertas continuam. Precisa de bandeja no desktop.")} {tr("A verificação consulta só a API pública do GitHub (sem telemetria).")}</p>
     </section>
   );
 }
@@ -1561,6 +1563,7 @@ export default function App() {
           </div>
           <ThermalStrip />
         </header>
+        <UpdateBanner />
         {fail && <div className="toast" role="alert"><span>{tr(fail)}</span><button onClick={() => setFail("")} aria-label={tr("Fechar")}>×</button></div>}
         {section.tabs.length > 1 && (
           <div className="tabs" role="tablist" aria-label={tr(section.title)} onKeyDown={(e) => {

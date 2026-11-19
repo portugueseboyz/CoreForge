@@ -3,6 +3,14 @@ import { BACKEND_EXACT, BACKEND_TEMPLATES } from "./en-backend";
 import { EXTRA_EXACT, EXTRA_TEMPLATES } from "./en-extras";
 
 const UI: Record<string, string> = {
+  "Nova versão {0} disponível. Para atualizar, baixe o novo .deb na página de versões.": "New version {0} available. To update, download the new .deb from the releases page.",
+  "Nova versão {0} disponível.": "New version {0} available.",
+  "Abrir página": "Open page",
+  "Verificar atualizações": "Check for updates",
+  "Verificar agora": "Check now",
+  "Não foi possível verificar agora.": "Could not check right now.",
+  "Você está na versão mais recente.": "You are on the latest version.",
+  "A verificação consulta só a API pública do GitHub (sem telemetria).": "The check only contacts GitHub's public API (no telemetry).",
   "Últimos 10 minutos de temperatura, carga, consumo e ventoinha, com mínimo, média e máximo.": "Last 10 minutes of temperature, load, power and fan speed, with min, average and max.",
   "Ventoinha": "Fan",
   "Cor": "Color",

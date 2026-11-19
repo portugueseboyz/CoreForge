@@ -64,6 +64,10 @@ Os testes de GPU precisam de Vulkan; ray tracing precisa de `VK_KHR_ray_query`. 
 Controle de ventoinhas, carregamento de módulos do kernel e acesso I²C podem afetar o hardware. O app pede confirmação e a senha do sistema a cada
 alteração, mantém um piso de 25 % na velocidade manual das ventoinhas e pode devolver ao automático todas as ventoinhas que alterou. Use por sua conta e risco (MIT, sem garantia).
 
+## Privacidade
+
+O CoreForge não tem telemetria. Além dos testes de velocidade que você mesmo inicia, o único uso de rede é a verificação de atualizações: uma requisição à API pública do GitHub (`api.github.com`, última versão) ao abrir e no máximo uma vez por dia, enviando apenas `User-Agent: CoreForge/<versão>`. Desligue em Configurações > "Verificar atualizações".
+
 ## Feedback
 
 Encontrou um erro, tem uma ideia ou quer contar como roda no seu hardware? Use os [formulários de issue](https://github.com/portugueseboyz/CoreForge/issues/new/choose)
