@@ -67,6 +67,10 @@ GPU tests need Vulkan; ray tracing needs `VK_KHR_ray_query`. Optional tools: `sm
 Fan control, kernel-module loading and I²C access can affect hardware. The app asks for confirmation and your system password for each
 change, keeps a 25 % floor on manual fan speed, and can return every fan it changed to automatic. Use at your own risk (MIT, no warranty).
 
+## Privacy
+
+CoreForge has no telemetry. The only network use besides the optional speed tests you start yourself is an update check: one request to GitHub's public API (`api.github.com`, latest release) at startup and at most once a day, sending nothing but `User-Agent: CoreForge/<version>`. Turn it off in Settings > "Check for updates".
+
 ## Feedback
 
 Found a bug, have an idea or want to say how it runs on your hardware? Use the [issue forms](https://github.com/portugueseboyz/CoreForge/issues/new/choose)

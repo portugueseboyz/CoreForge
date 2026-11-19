@@ -133,6 +133,9 @@ input[type=color] { width: 42px; height: 34px; padding: 2px; background: #0a0a0a
 .langs button.active { border-color: var(--accent); }
 .filters { align-items: center; margin-bottom: 14px; } input[type=search] { background: #0a0a0a; color: var(--text); border: 1px solid var(--line-2); border-radius: 8px; padding: 8px 11px; font: inherit; min-width: 240px; }
 .toast { display: flex; justify-content: space-between; gap: 16px; align-items: center; padding: 10px 14px; margin-bottom: 18px; border: 1px solid var(--bad); background: rgba(255, 77, 77, .08); color: var(--bad); }
+.toast.update { border-color: var(--accent, #b4ff1f); background: rgba(180, 255, 31, .06); color: var(--accent, #b4ff1f); }
+.toast.update .btn { margin-right: 10px; white-space: nowrap; }
+.toast.update > span:last-child { display: flex; align-items: center; flex-shrink: 0; }
 .toast button { background: none; border: 0; color: inherit; font-size: 20px; cursor: pointer; }
 /* no máximo 3 colunas; os cartões de uma linha têm a mesma altura, então nada fica com buraco embaixo */
 .cards { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(max(340px, calc((100% - 32px) / 3)), 1fr)); align-items: stretch; } .cards .card { margin: 0; }

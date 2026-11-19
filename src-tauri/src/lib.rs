@@ -14,6 +14,7 @@ mod profiles;
 mod net;
 mod setup;
 mod tray;
+mod update;
 mod power;
 mod curves;
 mod stress;
@@ -67,7 +68,7 @@ pub fn run() {
             tools::apps_list, tools::app_install, tools::app_install_status,
             gpu_rt::rt_start, gpu_rt::rt_cancel, gpu_rt::rt_status,
             fans::fans_report, fans::fan_apply, fans::fan_load_module, fans::fan_persist_module, fans::fan_overrides, fans::fan_restore_all, setup::system_check, setup::system_fix, fans::fan_scan_modules, fans::fan_map_test,
-            leds::leds_status, leds::leds_set, leds::leds_discover, profiles::profiles_list, profiles::profile_capture, profiles::profile_save, profiles::profile_delete, profiles::profile_set_start, profiles::profile_apply, profiles::profile_autostart_get, profiles::profile_autostart_set, leds::leds_report, leds::leds_setup])
+            leds::leds_status, leds::leds_set, leds::leds_discover, profiles::profiles_list, profiles::profile_capture, profiles::profile_save, profiles::profile_delete, profiles::profile_set_start, profiles::profile_apply, profiles::profile_autostart_get, profiles::profile_autostart_set, leds::leds_report, leds::leds_setup, update::update_check, update::update_open])
         .run(tauri::generate_context!())
         .unwrap_or_else(|e| {
             eprintln!("CoreForge não conseguiu abrir a janela: {e}\nVerifique se há uma sessão gráfica (DISPLAY/WAYLAND_DISPLAY) e se o WebKitGTK está instalado.");
