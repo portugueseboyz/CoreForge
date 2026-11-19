@@ -565,4 +565,14 @@ mod tests {
         for c in &r.channels { println!("{} · {} · rpm {:?} · {:?} % · {} · controlável {}", c.id, c.label, c.rpm, c.percent, c.mode, c.controllable); }
         println!("{:?}", r.hints);
     }
+    #[test]
+    fn polkit_policy_asks_every_time_for_system_changes() {
+        let pol = include_str!("../packaging/org.coreforge.helper.policy");
+        for a in ["install-package", "install-rgb-rules", "persist-module", "dialout", "remove-brltty"] {
+            assert!(pol.contains(&format!("exec.argv1\">{a}<")), "{a} sem ação própria no polkit");
+            assert!(pol.contains(&format!("org.coreforge.helper.{a}\"")));
+        }
+        assert_eq!(pol.matches("<allow_active>auth_admin</allow_active>").count(), 5);
+        assert_eq!(pol.matches("<allow_active>auth_admin_keep</allow_active>").count(), 1);
+    }
 }

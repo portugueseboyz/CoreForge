@@ -2,6 +2,8 @@
 <!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN" "http://www.freedesktop.org/standards/PolicyKit/1.0/policyconfig.dtd">
 <policyconfig>
   <vendor>CoreForge</vendor>
+  <!-- Fan control and loading drivers: one password prompt is remembered for a few minutes (auth_admin_keep).
+       pkexec picks the action whose argv1 annotation matches the first argument; this one has none, so it is the fallback. -->
   <action id="org.coreforge.helper.run">
     <description>Control hardware with CoreForge</description>
     <description xml:lang="pt">Controlar o hardware com o CoreForge</description>
@@ -13,5 +15,75 @@
       <allow_active>auth_admin_keep</allow_active>
     </defaults>
     <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/coreforge/coreforge-helper</annotate>
+  </action>
+  <!-- Changes the system beyond fan speed: asks for the password every time. -->
+  <action id="org.coreforge.helper.install-package">
+    <description>Install a system package</description>
+    <description xml:lang="pt">Instalar um pacote do sistema</description>
+    <message>Authentication is required to install a system package</message>
+    <message xml:lang="pt">É preciso autenticar para instalar um pacote do sistema</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/coreforge/coreforge-helper</annotate>
+    <annotate key="org.freedesktop.policykit.exec.argv1">install-package</annotate>
+  </action>
+  <!-- Changes the system beyond fan speed: asks for the password every time. -->
+  <action id="org.coreforge.helper.install-rgb-rules">
+    <description>Install RGB device access rules</description>
+    <description xml:lang="pt">Instalar regras de acesso aos dispositivos RGB</description>
+    <message>Authentication is required to install udev rules for RGB devices</message>
+    <message xml:lang="pt">É preciso autenticar para instalar regras udev dos dispositivos RGB</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/coreforge/coreforge-helper</annotate>
+    <annotate key="org.freedesktop.policykit.exec.argv1">install-rgb-rules</annotate>
+  </action>
+  <!-- Changes the system beyond fan speed: asks for the password every time. -->
+  <action id="org.coreforge.helper.persist-module">
+    <description>Load a hardware driver at every boot</description>
+    <description xml:lang="pt">Carregar um driver de hardware em todo boot</description>
+    <message>Authentication is required to make a hardware driver load at every boot</message>
+    <message xml:lang="pt">É preciso autenticar para carregar um driver de hardware em todo boot</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/coreforge/coreforge-helper</annotate>
+    <annotate key="org.freedesktop.policykit.exec.argv1">persist-module</annotate>
+  </action>
+  <!-- Changes the system beyond fan speed: asks for the password every time. -->
+  <action id="org.coreforge.helper.dialout">
+    <description>Allow access to serial ports</description>
+    <description xml:lang="pt">Permitir acesso às portas seriais</description>
+    <message>Authentication is required to add your user to the serial port group</message>
+    <message xml:lang="pt">É preciso autenticar para adicionar o seu usuário ao grupo das portas seriais</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/coreforge/coreforge-helper</annotate>
+    <annotate key="org.freedesktop.policykit.exec.argv1">dialout</annotate>
+  </action>
+  <!-- Changes the system beyond fan speed: asks for the password every time. -->
+  <action id="org.coreforge.helper.remove-brltty">
+    <description>Remove the brltty package</description>
+    <description xml:lang="pt">Remover o pacote brltty</description>
+    <message>Authentication is required to remove the brltty package</message>
+    <message xml:lang="pt">É preciso autenticar para remover o pacote brltty</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/coreforge/coreforge-helper</annotate>
+    <annotate key="org.freedesktop.policykit.exec.argv1">remove-brltty</annotate>
   </action>
 </policyconfig>

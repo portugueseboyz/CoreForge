@@ -32,7 +32,7 @@ Idiomas da interface: inglês e português (troque em Configurações). O app é
 
 A leitura não exige privilégios. Tudo que escreve no hardware (velocidade de ventoinha, carregar drivers, instalar pacote, regras udev) passa pelo
 `coreforge-helper`, um binário separado instalado em `/usr/libexec/coreforge/` e executado com `pkexec` (política polkit em
-`src-tauri/packaging/org.coreforge.helper.policy`). Ele aceita um conjunto fechado de ações com argumentos validados e nunca executa texto livre.
+`src-tauri/packaging/org.coreforge.helper.policy`). Ventoinhas e curvas pedem a senha uma vez (lembrada por alguns minutos); instalar pacotes, regras udev, drivers de todo boot e acesso às portas seriais pedem a senha toda vez. Ele aceita um conjunto fechado de ações com argumentos validados e nunca executa texto livre.
 Em desenvolvimento, usa o helper compilado junto ao app (`cargo build --bin coreforge-helper` roda automaticamente com `npm run tauri dev`).
 
 ## Desenvolvimento

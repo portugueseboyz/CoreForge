@@ -35,7 +35,7 @@ Interface languages: English and Portuguese (switch in Settings). The app is a L
 
 Reading is unprivileged. Anything that writes to hardware (fan speed, loading drivers, installing a package, udev rules) goes through
 `coreforge-helper`, a separate binary installed in `/usr/libexec/coreforge/` and run with `pkexec` (polkit policy in
-`src-tauri/packaging/org.coreforge.helper.policy`). It accepts a closed set of actions with validated arguments and never runs free text.
+`src-tauri/packaging/org.coreforge.helper.policy`). Fan control and curves ask for the password once (remembered for a few minutes); installing packages, udev rules, boot-time drivers and serial-port access ask every time. It accepts a closed set of actions with validated arguments and never runs free text.
 In development it uses the helper built next to the app (`cargo build --bin coreforge-helper` runs automatically with `npm run tauri dev`).
 
 ## Development
