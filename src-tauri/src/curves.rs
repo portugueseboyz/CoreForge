@@ -32,7 +32,7 @@ pub fn target(points: &[(f64, u32)], temp: f64) -> u32 {
     let (first, last) = (points[0], points[points.len() - 1]);
     if temp <= first.0 { return first.1; }
     if temp >= last.0 { return last.1; }
-    let w = points.windows(2).find(|w| temp <= w[1].0).expect("temp está entre o primeiro e o último ponto");
+    let Some(w) = points.windows(2).find(|w| temp <= w[1].0) else { return last.1 }; // NaN cai aqui: nunca entra em pânico (o motor roda como root)
     let f = (temp - w[0].0) / (w[1].0 - w[0].0);
     (w[0].1 as f64 + f * (w[1].1 as f64 - w[0].1 as f64)).round() as u32
 }
@@ -114,7 +114,21 @@ pub fn curves_stop() { request_stop(); }
 // ------------------------------------------------------------------ lado do ajudante (root)
 
 fn source_temp(source: &str) -> Option<f64> {
-    if source == "gpu" { crate::gpu::first_sample().map(|s| s.0) } else { crate::sysinfo::cpu_temp() }
+    (if source == "gpu" { crate::gpu::first_sample().map(|s| s.0) } else { crate::sysinfo::cpu_temp() }).filter(|t| t.is_finite())
+}
+
+const MAX_FILE: u64 = 64 * 1024;
+
+/// Lê o arquivo de curvas como root sem confiar no caminho: não segue link simbólico no último componente (O_NOFOLLOW), confere o dono
+/// e o tipo no próprio descritor aberto (sem janela entre checar e ler), recusa escrita por "outros" e limita o tamanho (nada de FIFO ou /dev/zero).
+fn read_curve_file(path: &Path, uid: u32) -> Result<CurveFile, String> {
+    use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
+    let f = fs::OpenOptions::new().read(true).custom_flags(0o400000 | 0o4000).open(path).map_err(|e| e.to_string())?; // O_NOFOLLOW | O_NONBLOCK
+    let m = f.metadata().map_err(|e| e.to_string())?;
+    if !m.is_file() || m.uid() != uid || m.mode() & 0o002 != 0 || m.len() > MAX_FILE { return Err("arquivo de curvas inválido".into()); }
+    let mut t = String::new();
+    std::io::Read::read_to_string(&mut std::io::Read::take(f, MAX_FILE), &mut t).map_err(|e| e.to_string())?;
+    serde_json::from_str(&t).map_err(|e| e.to_string())
 }
 
 /// Motor: roda como root até o arquivo mandar parar, o app sair ou o arquivo ficar inválido. `path` precisa ser de quem chamou o pkexec.
@@ -122,12 +136,12 @@ pub fn daemon(path: &str, app_pid: u32) -> Result<String, String> {
     use std::os::unix::fs::MetadataExt;
     let uid: u32 = std::env::var("PKEXEC_UID").ok().and_then(|u| u.parse().ok()).ok_or("sem PKEXEC_UID")?;
     let path = fs::canonicalize(path).map_err(|e| e.to_string())?;
-    let meta = fs::metadata(&path).map_err(|e| e.to_string())?;
-    if !meta.is_file() || meta.uid() != uid { return Err("arquivo de curvas inválido".into()); }
+    read_curve_file(&path, uid)?; // recusa já na partida
+    if fs::metadata(format!("/proc/{app_pid}")).map_err(|e| e.to_string())?.uid() != uid { return Err("o processo do app não é seu".into()); }
     let mut cur: HashMap<String, u32> = HashMap::new();
     let mut touched: HashMap<String, Curve> = HashMap::new();
     while Path::new(&format!("/proc/{app_pid}")).exists() {
-        let Some(file) = fs::read_to_string(&path).ok().and_then(|t| serde_json::from_str::<CurveFile>(&t).ok()).filter(|f| f.run) else { break };
+        let Some(file) = read_curve_file(&path, uid).ok().filter(|f| f.run) else { break };
         for c in file.curves.iter().filter(|c| validate(c).is_ok()) {
             let key = format!("{}:{}:{}", c.kind, c.chip, c.pwm);
             let want = source_temp(&c.source).map_or(100, |t| target(&c.points, t));
@@ -171,6 +185,32 @@ mod tests {
         assert!(validate(&curve(vec![(40.0, 30), (f64::NAN, 50)])).is_err());        // NaN
         let mut c = curve(P.to_vec()); c.source = "rm".into();
         assert!(validate(&c).is_err());
+    }
+    #[test]
+    fn curve_file_reader_is_strict() {
+        use std::os::unix::fs::{symlink, MetadataExt, PermissionsExt};
+        let d = std::env::temp_dir().join(format!("cf_curve_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&d);
+        fs::create_dir_all(&d).unwrap();
+        let me = fs::metadata(&d).unwrap().uid();
+        let w = |n: &str, t: &str| { let p = d.join(n); fs::write(&p, t).unwrap(); fs::set_permissions(&p, fs::Permissions::from_mode(0o644)).unwrap(); p };
+        let ok = w("ok.json", r#"{"run":true,"curves":[]}"#);
+        assert!(read_curve_file(&ok, me).unwrap().run);
+        assert!(read_curve_file(&ok, me + 1).is_err());                                   // dono errado
+        assert!(read_curve_file(&w("bad.json", "{nope"), me).is_err());                    // JSON malformado
+        assert!(read_curve_file(&w("big.json", &" ".repeat(MAX_FILE as usize + 1)), me).is_err()); // grande demais
+        let ww = w("ww.json", "{}");
+        fs::set_permissions(&ww, fs::Permissions::from_mode(0o666)).unwrap();
+        assert!(read_curve_file(&ww, me).is_err());                                       // gravável por qualquer um
+        symlink(&ok, d.join("link.json")).unwrap();
+        assert!(read_curve_file(&d.join("link.json"), me).is_err());                      // link simbólico
+        assert!(read_curve_file(&d, me).is_err());                                        // diretório
+        assert!(read_curve_file(Path::new("/dev/zero"), me).is_err());                    // dispositivo
+        let _ = fs::remove_dir_all(d);
+    }
+    #[test]
+    fn target_survives_nan() {
+        assert_eq!(target(P, f64::NAN), 100);
     }
     #[test]
     fn daemon_refuses_foreign_files() {

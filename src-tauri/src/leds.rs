@@ -106,7 +106,7 @@ pub fn leds_status() -> LedStatus {
     }
 }
 
-fn valid_mode(m: &str) -> bool { !m.is_empty() && m.len() <= 32 && m.chars().all(|c| c.is_ascii_alphanumeric() || c == ' ' || c == '-' || c == '_') }
+fn valid_mode(m: &str) -> bool { !m.is_empty() && !m.starts_with('-') && m.len() <= 32 && m.chars().all(|c| c.is_ascii_alphanumeric() || c == ' ' || c == '-' || c == '_') }
 
 /// Aplica modo, cor (RRGGBB), brilho e velocidade (0 a 100) a um dispositivo. Se a tela informar os nomes, guarda o ajuste para os perfis.
 #[tauri::command(async)]
@@ -364,7 +364,7 @@ mod tests {
     }
     #[test]
     fn validates_inputs() {
-        assert!(!valid_mode("a;rm -rf") && valid_mode("Color Cycle"));
+        assert!(!valid_mode("a;rm -rf") && valid_mode("Color Cycle") && !valid_mode("--profile") && !valid_mode(""));
         // cores por LED: valida cada uma antes de chamar o OpenRGB
         assert!(leds_set(0, Some(0), None, None, None, Some(vec!["FF0000".into(), "zz0000".into()]), None, None, None, None).is_err() || backend().is_none());
         assert!(leds_set(0, None, None, None, Some("12345".into()), None, None, None, None, None).is_err() || backend().is_none());
