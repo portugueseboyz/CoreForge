@@ -1143,10 +1143,25 @@ function Settings() {
 /** Boas-vindas da primeira execução: aparece uma vez (guardado em localStorage). */
 function Welcome({ onSetup }: { onSetup: () => void }) {
   const [open, setOpen] = useState(!localStorage.getItem("welcomed"));
-  if (!open) return null;
+  const box = useRef<HTMLDivElement>(null);
   const close = (setup: boolean) => { localStorage.setItem("welcomed", "1"); setOpen(false); if (setup) onSetup(); };
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.activeElement as HTMLElement | null;
+    box.current?.querySelector<HTMLElement>("button")?.focus();
+    return () => prev?.focus?.();
+  }, [open]);
+  if (!open) return null;
+  const onKey = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") return close(false);
+    if (e.key !== "Tab") return;
+    const f = box.current!.querySelectorAll<HTMLElement>("button");
+    const first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  };
   return (
-    <div className="welcome" role="dialog" aria-modal="true" aria-label={tr("Bem-vindo ao CoreForge")}>
+    <div className="welcome" ref={box} onKeyDown={onKey} role="dialog" aria-modal="true" aria-label={tr("Bem-vindo ao CoreForge")}>
       <section className="card">
         <h2>{tr("Bem-vindo ao CoreForge")}</h2>
         <ul>
