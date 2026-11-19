@@ -1,5 +1,6 @@
 // Dicionário pt → en. EXACT: frase inteira. TEMPLATES: frases com partes variáveis ({0}, {1}…), usadas também pelos textos que vêm do Rust.
 import { BACKEND_EXACT, BACKEND_TEMPLATES } from "./en-backend";
+import { EXTRA_EXACT, EXTRA_TEMPLATES } from "./en-extras";
 
 const UI: Record<string, string> = {
   "Últimos 10 minutos de temperatura, carga, consumo e ventoinha, com mínimo, média e máximo.": "Last 10 minutes of temperature, load, power and fan speed, with min, average and max.",
@@ -381,6 +382,6 @@ Object.assign(UI, {
   "FPS (opcional): este app não injeta no jogo. Com o MangoHud instalado, coloque esta opção de inicialização no jogo (Steam: Propriedades > Opções de inicialização) e marque FPS (MangoHud) abaixo; sem log ativo o FPS mostra — (a pasta de log é fixa; ~ marca um valor de alguns segundos atrás).": "FPS (optional): this app does not inject into the game. With MangoHud installed, add this launch option to the game (Steam: Properties > Launch Options) and tick FPS (MangoHud) below; with no active log FPS shows — (the log folder is fixed; ~ marks a value a few seconds old).",
 });
 
-export const EXACT: Record<string, string> = { ...UI, ...BACKEND_EXACT };
+export const EXACT: Record<string, string> = { ...UI, ...BACKEND_EXACT, ...EXTRA_EXACT };
 export const TEMPLATES: [string, string][] = [
-  ["{0} a {1} °C (limite: {2} °C). Verifique a refrigeração.", "{0} at {1} °C (limit: {2} °C). Check your cooling."],...BACKEND_TEMPLATES];
+  ["{0} a {1} °C (limite: {2} °C). Verifique a refrigeração.", "{0} at {1} °C (limit: {2} °C). Check your cooling."],...BACKEND_TEMPLATES, ...EXTRA_TEMPLATES];

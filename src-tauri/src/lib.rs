@@ -1,4 +1,6 @@
 mod bench;
+mod cleanup;
+mod cpuinfo;
 mod report_file;
 mod disk;
 mod fans;
@@ -63,7 +65,7 @@ pub fn run() {
             gpu_stress::gpu_stress_start, gpu_stress::gpu_stress_stop, gpu_stress::gpu_stress_status,
             games::games_scan, games::game_launch, games::fps_table, metrics::live_metrics, metrics::overlay_toggle, metrics::mangohud_hint, metrics::notify, tray::tray_close_set, curves::curves_get, curves::curves_save, curves::curves_start, curves::curves_stop, curves::curves_status, power::power_info, power::power_profile_set,
             gpu_bench::gpu_bench_start, gpu_bench::gpu_bench_cancel, gpu_bench::gpu_bench_status,
-            tools::startup_list, tools::startup_set, tools::serial_report, tools::serial_fix,
+            cleanup::cleanup_scan, cleanup::cleanup_run, cpuinfo::cpu_details, cpuinfo::throttle_report, tools::startup_list, tools::startup_set, tools::serial_report, tools::serial_fix,
             tools::apps_list, tools::app_install, tools::app_install_status,
             gpu_rt::rt_start, gpu_rt::rt_cancel, gpu_rt::rt_status,
             fans::fans_report, fans::fan_apply, fans::fan_load_module, fans::fan_persist_module, fans::fan_overrides, fans::fan_restore_all, setup::system_check, setup::system_fix, fans::fan_scan_modules, fans::fan_map_test,
