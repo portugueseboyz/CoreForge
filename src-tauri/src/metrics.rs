@@ -15,7 +15,7 @@ pub struct Metrics {
     gpu_power_w: Option<f64>, gpu_fan: Option<u32>, vram_used_mb: Option<f64>, vram_total_mb: Option<f64>, gpu_throttle: Option<String>,
     cpu_load: Option<f64>, cpu_busiest: Option<f64>, cpu_temp: Option<f64>, cpu_clock_mhz: Option<f64>,
     ram_used_gb: Option<f64>, ram_total_gb: Option<f64>,
-    fps: Option<f64>,
+    fps: Option<f64>, fps_stale: bool,
 }
 
 #[tauri::command]
@@ -66,7 +66,7 @@ pub fn live_metrics(st: tauri::State<MetricsState>) -> Metrics {
     let mi = crate::sysinfo::kv_pub(&read("/proc/meminfo").unwrap_or_default());
     let kb = |k: &str| mi.get(k).and_then(|v| v.trim_end_matches("kB").trim().parse::<f64>().ok());
     if let (Some(t), Some(a)) = (kb("MemTotal"), kb("MemAvailable")) { m.ram_total_gb = Some(t / 1048576.0); m.ram_used_gb = Some((t - a) / 1048576.0); }
-    m.fps = mangohud_fps();
+    if let Some((f, stale)) = mangohud_fps() { m.fps = Some(f); m.fps_stale = stale; }
     m
 }
 
@@ -112,45 +112,71 @@ pub fn mangohud_hint() -> String {
     format!("MANGOHUD_CONFIG=output_folder={},log_interval=250,autostart_log=1,log_duration=86400 mangohud %command%", d.display())
 }
 
-/// Último FPS do CSV mais recente (modificado há < 5 s) em `mangohud_dir`.
-fn mangohud_fps() -> Option<f64> {
+/// Log mais antigo que isto: o jogo parou de gravar, FPS some (—). Entre `FPS_FRESH` e este limite o último valor segue, marcado como defasado.
+const FPS_MAX_AGE: std::time::Duration = std::time::Duration::from_secs(10);
+const FPS_FRESH: std::time::Duration = std::time::Duration::from_secs(3);
+
+/// Último FPS do CSV mais recente em `mangohud_dir` (pasta fixa, a mesma do `mangohud_hint`) e se está defasado.
+fn mangohud_fps() -> Option<(f64, bool)> {
     use std::io::{Read, Seek, SeekFrom};
-    let (path, _) = std::fs::read_dir(mangohud_dir()).ok()?.flatten()
+    let (path, age) = std::fs::read_dir(mangohud_dir()).ok()?.flatten()
         .filter(|e| { let n = e.file_name(); let n = n.to_string_lossy(); n.ends_with(".csv") && !n.ends_with("_summary.csv") })
-        .filter_map(|e| { let t = e.metadata().ok()?.modified().ok()?; (t.elapsed().ok()? < std::time::Duration::from_secs(5)).then(|| (e.path(), t)) })
-        .max_by_key(|(_, t)| *t)?;
+        .filter_map(|e| { let age = e.metadata().ok()?.modified().ok()?.elapsed().ok()?; (age < FPS_MAX_AGE).then(|| (e.path(), age)) })
+        .min_by_key(|(_, a)| *a)?;
     let mut f = std::fs::File::open(path).ok()?;
     let len = f.metadata().ok()?.len();
+    let mut head = vec![0; 4096.min(len as usize)];
+    f.read_exact(&mut head).ok()?;
+    let col = fps_column(&String::from_utf8_lossy(&head));
     f.seek(SeekFrom::Start(len.saturating_sub(4096))).ok()?;
     let mut buf = Vec::new();
     f.read_to_end(&mut buf).ok()?;
-    parse_last_fps(&String::from_utf8_lossy(&buf))
+    Some((parse_last_fps(&String::from_utf8_lossy(&buf), col)?, age >= FPS_FRESH))
 }
 
-/// FPS (1ª coluna) da última linha de dados completa. Ignora cabeçalhos e a linha final sem `\n` (pode estar cortada).
-/// shortcut: assume a 1ª coluna = fps (ordem atual do MangoHud); conferir se mudarem o formato.
-fn parse_last_fps(text: &str) -> Option<f64> {
+/// Índice da coluna `fps` pelo cabeçalho (primeira linha com um campo "fps", ignorando o prefixo `v1`/separadores do
+/// `log_versioning`); sem cabeçalho, coluna 0.
+fn fps_column(head: &str) -> usize {
+    head.lines().find_map(|l| l.split(',').position(|c| c.trim().eq_ignore_ascii_case("fps"))).unwrap_or(0)
+}
+
+/// FPS da coluna `col` na última linha de dados completa. Ignora cabeçalhos e a linha final sem `\n` (pode estar cortada).
+fn parse_last_fps(text: &str, col: usize) -> Option<f64> {
     let complete = &text[..text.rfind('\n')?];
-    let line = complete.lines().next_back()?;
-    let mut cols = line.split(',');
-    let fps: f64 = cols.next()?.trim().parse().ok()?;
-    (cols.count() >= 5 && fps.is_finite() && fps >= 0.0).then_some(fps)
+    let cols: Vec<&str> = complete.lines().next_back()?.split(',').collect();
+    let fps: f64 = cols.get(col)?.trim().parse().ok()?;
+    (cols.len() >= 5 && fps.is_finite() && fps >= 0.0).then_some(fps)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::parse_last_fps;
+    use super::{fps_column, parse_last_fps};
     const HEAD: &str = "os,cpu,gpu,ram,kernel,driver,cpuscheduler\nLinux,X,Y,16000,7.0,Mesa,none\nfps,frametime,cpu_load,cpu_power,gpu_load,cpu_temp,gpu_temp,gpu_core_clock,gpu_mem_clock,gpu_vram_used,gpu_power,ram_used,swap_used,process_rss,cpu_mhz,elapsed\n";
+    // log_versioning=1: linha de versão e separadores antes do cabeçalho; fps deslocado de coluna.
+    const VER: &str = "v1\n--------------------MangoHud Info--------------------\nos,cpu,gpu\nLinux,X,Y\n--------------------FPS Data-------------------------\nframetime,fps,cpu_load,a,b,c\n";
     #[test]
     fn last_complete_row() {
         let t = format!("{HEAD}60.1,16.6,10,0,50,40,50,1500,800,2,100,8,0,1,3000,1\n143.9,6.9,10,0,50,40,50,1500,800,2,100,8,0,1,3000,2\n");
-        assert_eq!(parse_last_fps(&t), Some(143.9));
+        assert_eq!(parse_last_fps(&t, fps_column(&t)), Some(143.9));
     }
     #[test]
     fn ignores_cut_last_line_and_headers() {
-        assert_eq!(parse_last_fps(&format!("{HEAD}60.0,16.6,1,2,3,4,5\n99.")), Some(60.0));
-        assert_eq!(parse_last_fps(HEAD), None);
-        assert_eq!(parse_last_fps(""), None);
-        assert_eq!(parse_last_fps("garbage\n"), None);
+        assert_eq!(parse_last_fps(&format!("{HEAD}60.0,16.6,1,2,3,4,5\n99."), 0), Some(60.0));
+        assert_eq!(parse_last_fps(HEAD, 0), None);
+        assert_eq!(parse_last_fps("", 0), None);
+        assert_eq!(parse_last_fps("garbage\n", 0), None);
+    }
+    #[test]
+    fn column_by_header_with_versioning() {
+        let t = format!("{VER}16.6,60.0,1,2,3,4\n6.9,144.0,1,2,3,4\n");
+        assert_eq!(fps_column(&t), 1);
+        assert_eq!(parse_last_fps(&t, 1), Some(144.0));
+        assert_eq!(fps_column(HEAD), 0);
+    }
+    #[test]
+    fn column_fallback_without_header() {
+        assert_eq!(fps_column("60.0,16.6,1,2,3,4\n"), 0);
+        assert_eq!(parse_last_fps("60.0,16.6,1,2,3,4\n", 0), Some(60.0));
+        assert_eq!(parse_last_fps("60.0,16.6\n", 5), None); // coluna fora do alcance
     }
 }
