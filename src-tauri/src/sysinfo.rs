@@ -182,7 +182,7 @@ fn hwmon_sensors(root: &Path) -> Vec<Sensor> {
     out
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn sensors(prev: tauri::State<CpuPrev>) -> Vec<Sensor> {
     let mut out = hwmon_sensors(Path::new("/sys/class/hwmon"));
 

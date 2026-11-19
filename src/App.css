@@ -188,3 +188,8 @@ input[type=text] { background: #0a0a0a; color: var(--text); border: 1px solid va
   .filters label { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .sensors { display: block; overflow-x: auto; }
 }
+
+/* acessibilidade: dica sempre visível (sem depender de hover) e painel de aba focável por teclado */
+.hint { font-size: 12px; margin: 10px 0 0; }
+#tabpanel:focus-visible { outline-offset: -2px; }
+@media (prefers-reduced-motion: reduce) { .pill i, .meter *, progress { animation: none !important; } html { scroll-behavior: auto; } }

@@ -477,17 +477,28 @@ const OVERLAY_ITEMS: [string, string, (m: Metrics) => string][] = [
 const DEFAULT_ITEMS = ["gpu_util", "gpu_temp", "vram", "cpu_load", "cpu_temp", "ram"];
 const loadItems = (): string[] => { try { return JSON.parse(localStorage.getItem("overlayItems") ?? "") as string[]; } catch { return DEFAULT_ITEMS; } };
 
+// Um único poll de live_metrics por janela, compartilhado por todos os componentes (o mais rápido pedido define o ritmo).
+const mSubs = new Map<symbol, { ms: number; set: (m: Metrics) => void }>();
+let mLast: Metrics | null = null, mTimer = 0, mEvery = 0;
+function mStart() {
+  const every = Math.min(...[...mSubs.values()].map((x) => x.ms));
+  if (mTimer && every === mEvery) return;
+  clearInterval(mTimer); mEvery = every;
+  const tick = () => invoke<Metrics>("live_metrics").then((x) => { mLast = x; mSubs.forEach((s) => s.set(x)); }).catch(() => {});
+  tick(); mTimer = setInterval(tick, every);
+}
 function useMetrics(ms = 1000) {
-  const [m, setM] = useState<Metrics | null>(null);
+  const [m, setM] = useState<Metrics | null>(mLast);
   useEffect(() => {
-    let alive = true;
-    const tick = () => invoke<Metrics>("live_metrics").then((x) => alive && setM(x));
-    tick();
-    const t = setInterval(tick, ms);
-    return () => { alive = false; clearInterval(t); };
+    const id = Symbol();
+    mSubs.set(id, { ms, set: setM }); mStart();
+    return () => { mSubs.delete(id); if (mSubs.size === 0) { clearInterval(mTimer); mTimer = 0; mEvery = 0; } else mStart(); };
   }, [ms]);
   return m;
 }
+
+/** Estado de carregamento das páginas: avisa que está lendo e o que fazer se não terminar. */
+const Loading = () => <p className="dim" role="status">{tr("Carregando… Se não terminar em alguns segundos, troque de aba e volte, ou veja a Preparação.")}</p>;
 
 function OverlayView() {
   const m = useMetrics(1000);
@@ -543,7 +554,7 @@ function OverlaySettings() {
 
 function Bottleneck() {
   const m = useMetrics(1000);
-  if (!m) return null;
+  if (!m) return <Loading />;
   const vramPct = m.vram_used_mb && m.vram_total_mb ? (100 * m.vram_used_mb) / m.vram_total_mb : null;
   const ramPct = m.ram_used_gb && m.ram_total_gb ? (100 * m.ram_used_gb) / m.ram_total_gb : null;
   let verdict = tr("Sem carga relevante: abra um jogo e volte aqui."), lvl = "info";
@@ -693,7 +704,7 @@ function Serial() {
     if (!window.confirm(tf("{0}\n\nO sistema vai pedir a sua senha. Continuar?", what))) return;
     invoke<string>("serial_fix", { action }).then(() => { setMsg(tr("Feito. Para o grupo dialout valer, saia e entre na sessão de novo.")); load(); }).catch((e) => setMsg(String(e)));
   };
-  if (!r) return null;
+  if (!r) return <Loading />;
   return (
     <>
       {r.hints.map((h, i) => <section key={i} className="card"><p className="reason">{tr(h)}</p></section>)}
@@ -755,7 +766,7 @@ function Apps() {
           <div className="kv" key={a.id}>
             <span><b>{a.name}</b> <span className="dim">{tr(a.desc)}</span></span>
             {a.installed ? <span className="lv-ok strong">{tr("Instalado")} · {tr(a.source)}</span>
-              : <button className="btn small" disabled={busy || !flatpak} onClick={() => invoke("app_install", { id: a.id }).catch((e) => setErr(String(e)))}>{tr("Instalar")}</button>}
+              : <button className="btn small" disabled={busy || !flatpak} onClick={() => window.confirm(tf("Instalar {0} pelo Flatpak? O download pode ser grande e leva alguns minutos.", a.name)) && invoke("app_install", { id: a.id }).catch((e) => setErr(String(e)))}>{tr("Instalar")}</button>}
           </div>
         ))}
       </section>
@@ -856,7 +867,7 @@ function Fans() {
   const [manual, setManual] = useState(0);
   const load = () => invoke<{ channels: Channel[]; hints: string[]; modules: string[] }>("fans_report").then(setR);
   useEffect(() => { const f = () => { load(); invoke<unknown[]>("fan_overrides").then((o) => setManual(o.length)); }; f(); const t = setInterval(f, 2000); return () => clearInterval(t); }, []);
-  if (!r) return null;
+  if (!r) return <Loading />;
   const restore = () => { if (window.confirm(tr("Devolver ao controle automático todas as ventoinhas que o CoreForge fixou? O sistema vai pedir a sua senha."))) invoke<string>("fan_restore_all").then((m) => { setMsg(m); load(); }).catch((e) => setMsg(String(e))); };
   const scan = () => {
     if (!window.confirm(tr("Vou procurar o driver das ventoinhas da sua placa-mãe, tentando carregar os candidatos do seu fabricante (modprobe) e descarregando os que não ajudarem. O sistema vai pedir a sua senha. Continuar?"))) return;
@@ -992,7 +1003,7 @@ function RgbDiscovery({ onChanged, devices }: { onChanged: () => void; devices: 
   const [report, setReport] = useState("");
   const load = () => invoke<Discovery>("leds_discover").then((x) => { discoCache = x; setD(x); });
   useEffect(() => { load(); }, []);
-  if (!d) return null;
+  if (!d) return <Loading />;
   const hidTodo = d.hid.filter((h) => !h.accessible), i2cTodo = d.i2c.filter((b) => !b.accessible);
   const need = hidTodo.length > 0 || !d.i2c_dev_loaded || i2cTodo.length > 0;
   const grant = () => {
@@ -1125,11 +1136,11 @@ function Settings() {
     <section className="card">
       <h2>{tr("Preferências")}</h2>
       <div className="row filters">
-        <label className="dim" title={tr("Avisa quando a CPU ou a GPU passa desse valor. 0 desliga.")}>{tr("Alerta de temperatura (°C)")}{" "}
+        <label className="dim">{tr("Alerta de temperatura (°C)")}{" "}
           <input type="number" min={0} max={120} value={limit} style={{ width: 70 }}
             onChange={(e) => { const v = Math.max(0, Math.min(120, Number(e.target.value) || 0)); setLimit(v); localStorage.setItem("tempLimit", String(v)); }} />
         </label>
-        <label className="dim" title={tr("Fechar a janela deixa o app na bandeja do sistema, e os alertas continuam. Precisa de bandeja no desktop.")}>
+        <label className="dim">
           <input type="checkbox" checked={keep} onChange={(e) => { setKeep(e.target.checked); localStorage.setItem("keepTray", e.target.checked ? "1" : "0"); invoke("tray_close_set", { on: e.target.checked }); }} /> {tr("Manter na bandeja ao fechar")}
         </label>
         <span className="dim">{tr("Idioma")}</span>
@@ -1137,6 +1148,7 @@ function Settings() {
           {(["en", "pt"] as const).map((l) => <button key={l} className={l === lang ? "active" : ""} aria-pressed={l === lang} onClick={() => l !== lang && setLang(l)}>{l.toUpperCase()}</button>)}
         </div>
       </div>
+    <p className="dim hint">{tr("Avisa quando a CPU ou a GPU passa desse valor. 0 desliga.")} {tr("Fechar a janela deixa o app na bandeja do sistema, e os alertas continuam. Precisa de bandeja no desktop.")}</p>
     </section>
   );
 }
@@ -1231,7 +1243,8 @@ function Setup({ onIssues, go }: { onIssues: (n: number) => void; go: (page: str
   const [checks, setChecks] = useState<Check[] | null>(null);
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
-  const run = () => { setBusy(true); invoke<Check[]>("system_check").then((c) => { setChecks(c); onIssues(c.filter((x) => x.status === "warn" || x.status === "missing").length); }).finally(() => setBusy(false)); };
+  const [err, setErr] = useState("");
+  const run = () => { setBusy(true); setErr(""); invoke<Check[]>("system_check").then((c) => { setChecks(c); onIssues(c.filter((x) => x.status === "warn" || x.status === "missing").length); }).catch((e) => setErr(String(e))).finally(() => setBusy(false)); };
   useEffect(run, []);
   const fix = (c: Check) => {
     if (!c.fix) return;
@@ -1243,7 +1256,7 @@ function Setup({ onIssues, go }: { onIssues: (n: number) => void; go: (page: str
   const bad = checks?.filter((c) => c.status === "warn" || c.status === "missing").length ?? 0;
   return (
     <>
-      <p className="dim">{checks == null ? "Verificando…" : bad === 0 ? tr("Tudo certo: o CoreForge encontrou o que precisa neste PC.") : tf("{0} item(ns) pedem atenção. As verificações só leem; qualquer correção pede confirmação e a senha do sistema.", bad)}</p>
+      <p className="dim">{err ? tr("Não foi possível verificar o PC. Clique em Verificar de novo; se persistir, reinicie o app.") : checks == null ? tr("Verificando…") : bad === 0 ? tr("Tudo certo: o CoreForge encontrou o que precisa neste PC.") : tf("{0} item(ns) pedem atenção. As verificações só leem; qualquer correção pede confirmação e a senha do sistema.", bad)}</p>
       <section className="card">
         {checks?.map((c) => (
           <div className={`check-row st-${c.status}`} key={c.id}>
@@ -1254,7 +1267,7 @@ function Setup({ onIssues, go }: { onIssues: (n: number) => void; go: (page: str
         ))}
       </section>
       {msg && <p className="dim">{msg}</p>}
-      <button className="btn small danger" disabled={busy} onClick={run}>{tr("Verificar de novo")}</button>
+      <button className="btn small" disabled={busy} onClick={run}>{tr("Verificar de novo")}</button>
     </>
   );
 }
@@ -1316,7 +1329,7 @@ function Curves() {
   const edit = (c: Channel, f: (k: Curve) => Curve | null) => setCurves((all) => all.flatMap((k) => (same(c)(k) ? (f(k) ? [f(k)!] : []) : [k])));
   const create = (c: Channel) => setCurves((all) => [...all, { kind: c.kind, hw: c.hw, pwm: c.pwm, chip: c.chip, label: c.label, source: c.kind === "gpu" ? "gpu" : "cpu", points: PRESETS["Equilibrado"] }]);
   const save = () => invoke("curves_save", { curves }).then(() => { setMsg(tr("Curvas salvas.")); return true; }).catch((e) => { setMsg(tr(String(e))); return false; });
-  const start = async () => { if (await save()) invoke("curves_start").then(() => invoke<{ running: boolean; error: string }>("curves_status").then(setSt)).catch((e) => setMsg(tr(String(e)))); };
+  const start = async () => { if (!window.confirm(tr("Iniciar as curvas? As ventoinhas passam a seguir a temperatura e o sistema vai pedir a sua senha. Fechar o app devolve o controle ao automático."))) return; if (await save()) invoke("curves_start").then(() => invoke<{ running: boolean; error: string }>("curves_status").then(setSt)).catch((e) => setMsg(tr(String(e)))); };
   const num = (v: string) => Number(v) || 0;
   return (
     <>
@@ -1387,7 +1400,7 @@ function Power() {
     const t = setInterval(tick, 3000);
     return () => { alive = false; clearInterval(t); };
   }, []);
-  if (!p) return null;
+  if (!p) return <Loading />;
   const setProfile = (name: string) => { setErr(""); invoke("power_profile_set", { name }).then(() => invoke<PowerInfo>("power_info").then(setP)).catch((e) => setErr(String(e))); };
   const row = (k: string, v: string) => <div className="kv" key={k}><span className="dim">{tr(k)}</span><span className="strong">{v}</span></div>;
   return (
@@ -1536,12 +1549,17 @@ export default function App() {
         </header>
         {fail && <div className="toast" role="alert"><span>{tr(fail)}</span><button onClick={() => setFail("")} aria-label={tr("Fechar")}>×</button></div>}
         {section.tabs.length > 1 && (
-          <div className="tabs" role="tablist">
-            {section.tabs.map((t) => <button key={t.id} role="tab" aria-selected={t.id === tab.id} className={t.id === tab.id ? "active" : ""} onClick={() => pickTab(t.id)}>{tr(t.label)}</button>)}
+          <div className="tabs" role="tablist" aria-label={tr(section.title)} onKeyDown={(e) => {
+            const d = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : e.key === "Home" ? -tabIdx : e.key === "End" ? section.tabs.length : 0;
+            if (!d) return;
+            e.preventDefault(); const n = section.tabs[(tabIdx + d + section.tabs.length) % section.tabs.length].id; pickTab(n);
+            requestAnimationFrame(() => document.getElementById(`tab-${n}`)?.focus());
+          }}>
+            {section.tabs.map((t) => <button key={t.id} id={`tab-${t.id}`} role="tab" aria-selected={t.id === tab.id} aria-controls="tabpanel" tabIndex={t.id === tab.id ? 0 : -1} className={t.id === tab.id ? "active" : ""} onClick={() => pickTab(t.id)}>{tr(t.label)}</button>)}
           </div>
         )}
         <Boundary resetKey={sec * 100 + tabIdx}>
-          <div className="page" key={`${section.id}-${tab.id}`}>{tab.view({ setIssues, goLeds })}</div>
+          <div className="page" id="tabpanel" role={section.tabs.length > 1 ? "tabpanel" : undefined} aria-labelledby={section.tabs.length > 1 ? `tab-${tab.id}` : undefined} key={`${section.id}-${tab.id}`}>{tab.view({ setIssues, goLeds })}</div>
         </Boundary>
       </main>
     </div>
