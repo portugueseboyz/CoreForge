@@ -6,6 +6,7 @@ import { loadRuns, saveRun, RUN_KINDS, type Run } from "./runs";
 import { buildReport } from "./report";
 import { tempLimit, curveX as x, curveY as y, extendCurve } from "./curvemath";
 import { History } from "./History";
+import { Cleanup, CpuDetails, Throttle } from "./Extras";
 import { Chart, TEMP_LINES, LOAD_LINES, POWER_LINES, BOTTLENECK_LINES } from "./Chart";
 import { invoke } from "@tauri-apps/api/core";
 import logo from "./assets/logo.svg";
@@ -1217,6 +1218,8 @@ const SECTIONS: Section[] = [
   { id: "sistema", title: "Sistema", tabs: [
     { id: "info", label: "Informações", blurb: tr("Sistema, placa-mãe, processador, memória, vídeo e discos desta máquina."), view: () => <Info /> },
     { id: "gpu", label: "Placa de vídeo", blurb: tr("Ficha da placa de vídeo (NVIDIA, AMD e Intel) e leituras ao vivo."), view: () => <Gpu /> },
+    { id: "cpu", label: "CPU", blurb: tr("Detalhes do processador: cache, frequência por núcleo, governador e instruções."), view: () => <CpuDetails /> },
+    { id: "limites", label: "Limites", blurb: tr("Verifica se a CPU ou a GPU estão sendo limitadas por calor ou potência."), view: () => <Throttle /> },
     { id: "energia", label: "Energia", blurb: tr("Bateria, fonte de energia e perfil de desempenho (notebooks)."), view: () => <Power /> },
     { id: "historico", label: "Histórico", blurb: tr("Últimos 10 minutos de temperatura, carga, consumo e ventoinha, com mínimo, média e máximo."), view: () => <History /> },
     { id: "sensores", label: "Sensores", blurb: tr("Temperaturas, clocks, cargas e tensões, atualizados a cada segundo."), view: () => <Sensors /> }] },
@@ -1241,6 +1244,7 @@ const SECTIONS: Section[] = [
     { id: "perfis", label: "Perfis", blurb: tr("Guarde as velocidades e as luzes que você ajustou e reaplique com um clique, ou ao iniciar a sessão."), view: () => <Profiles /> }] },
   { id: "ferramentas", title: "Ferramentas", tabs: [
     { id: "startup", label: "Inicialização", blurb: tr("Programas que abrem junto com a sua sessão."), view: () => <Startup /> },
+    { id: "limpeza", label: "Limpeza", blurb: tr("Veja o que ocupa espaço e limpe uma categoria por vez."), view: () => <Cleanup /> },
     { id: "serial", label: "Portas e USB", blurb: tr("Placas Arduino e adaptadores seriais, com diagnóstico de permissão."), view: () => <Serial /> },
     { id: "apps", label: "Instalar apps", blurb: tr("Instale os apps de sempre depois de formatar."), view: () => <Apps /> }] },
   { id: "config", title: "Configurações", tabs: [{ id: "config", label: "Configurações", blurb: tr("Alerta de temperatura, bandeja e idioma, num só lugar."), view: () => <Settings /> }] },
