@@ -153,7 +153,12 @@ pub fn net_start(st: tauri::State<NetState>) -> Result<(), String> {
     st.cancel.store(false, Relaxed);
     *st.inner.lock().unwrap_or_else(|e| e.into_inner()) = Inner::default();
     let (inner, running, cancel) = (st.inner.clone(), st.running.clone(), st.cancel.clone());
-    thread::spawn(move || { run(&inner, &cancel); running.store(false, Relaxed); });
+    thread::spawn(move || {
+        if crate::guard(|| { run(&inner, &cancel); Ok(()) }).is_err() {
+            inner.lock().unwrap_or_else(|e| e.into_inner()).rows.push(Row { label: "Erro".into(), value: "falha interna no teste".into(), level: "bad" });
+        }
+        running.store(false, Relaxed);
+    });
     Ok(())
 }
 
@@ -197,6 +202,10 @@ mod tests {
         assert_eq!((p.sent, p.avg, p.jitter), (5, 10.2, 1.1));
         let lost = parse_ping("3 packets transmitted, 0 received, 100% packet loss, time 2000ms\n").unwrap();
         assert_eq!(lost.lost_pct, 100.0);
+    }
+    #[test]
+    fn ping_malformed_is_none() {
+        for s in ["", "garbage", "packets transmitted", "x packets transmitted, y received\n", "rtt min/avg/max/mdev = a/b ms\n"] { assert!(parse_ping(s).is_none(), "{s}"); }
     }
     #[test]
     fn lists_interfaces() { println!("{}", serde_json::to_string(&net_interfaces()).unwrap()); }

@@ -123,7 +123,7 @@ pub fn gpu_stress_start(state: tauri::State<GpuStressState>, intensity: u32, tem
     *state.st.lock().unwrap_or_else(|e| e.into_inner()) = GpuStressStatus { running: true, ..Default::default() };
     let (st, stop) = (state.st.clone(), state.stop.clone());
     *h = Some(thread::spawn(move || {
-        let r = work(intensity.clamp(1, 3), temp_limit, minutes, &stop, &st);
+        let r = crate::guard(|| work(intensity.clamp(1, 3), temp_limit, minutes, &stop, &st));
         let mut g = st.lock().unwrap_or_else(|e| e.into_inner());
         g.running = false;
         match r { Ok(why) => g.reason = why, Err(e) => g.error = e }

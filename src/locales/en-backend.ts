@@ -261,6 +261,7 @@ export const BACKEND_EXACT: Record<string, string> = {
 };
 
 export const BACKEND_TEMPLATES: [string, string][] = [
+  ["Falha interna inesperada ({0})", "Unexpected internal failure ({0})"],
   ["SMART indisponível: instale o smartmontools ({0}) e abra o app com permissão de leitura do disco.", "SMART unavailable: install smartmontools ({0}) and open the app with permission to read the disk."],
   ["O OpenRGB não está instalado. Instale-o na página Instalar apps (ou com {0}) e volte aqui.", "OpenRGB is not installed. Install it from the Install apps page (or with {0}) and come back."],
   ["Sem permissão para escrever em {0}: {1}", "No permission to write to {0}: {1}"],

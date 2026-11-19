@@ -313,7 +313,11 @@ pub fn bench_start(st: tauri::State<BenchState>, multi: bool, min_minutes: f64, 
     *sh.result.lock().unwrap_or_else(|e| e.into_inner()) = None;
     let threads = if multi { thread::available_parallelism().map_or(1, |n| n.get()) } else { 1 };
     let min = Duration::from_secs_f64(min_minutes.max(0.0) * 60.0);
-    thread::spawn(move || run(sh, threads, min, spp.unwrap_or(SPP).max(1)));
+    thread::spawn(move || {
+        let s2 = sh.clone();
+        let _ = crate::guard(|| { run(sh, threads, min, spp.unwrap_or(SPP).max(1)); Ok(()) });
+        s2.running.store(false, Relaxed);
+    });
     Ok(())
 }
 
