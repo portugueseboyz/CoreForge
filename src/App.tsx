@@ -982,11 +982,11 @@ function LedRow({ d, onDone }: { d: LedDevice; onDone: (m: string) => void }) {
     <div className="fan">
       <div className="kv"><span><b>{d.name}</b> <span className="dim">{d.kind}</span></span><span className="dim">modo atual: {d.active_mode || "—"}</span></div>
       <div className="row fan-ctl">
-        <input type="color" value={color} onChange={(e) => setColor(e.target.value)} aria-label="Cor" />
+        <input type="color" value={color} onChange={(e) => setColor(e.target.value)} aria-label={tr("Cor")} />
         <select value={zone} onChange={(e) => setZone(+e.target.value)} aria-label={tr("Zona")}><option value={-1}>{tr("Todas as zonas")}</option>{d.zones.map((z, i) => <option key={z} value={i}>{z}</option>)}</select>
         {addressable && <label className="check">{tr("LEDs")}<input type="number" min={1} max={1024} value={leds} onChange={(e) => setLeds(+e.target.value)} style={{ minWidth: 80, width: 80 }} aria-label={tr("Quantidade de LEDs")} /></label>}
         <select value={mode} onChange={(e) => setMode(e.target.value)} aria-label={tr("Modo")}>{d.modes.map((m) => <option key={m}>{m}</option>)}</select>
-        <label className="check">Brilho {bright} %<input type="range" min={0} max={100} value={bright} onChange={(e) => setBright(+e.target.value)} /></label>
+        <label className="check">{tf("Brilho {0} %", bright)}<input type="range" min={0} max={100} value={bright} onChange={(e) => setBright(+e.target.value)} /></label>
         {addressable && (d.zone_leds[zone] ?? 0) === 0 && <span className="reason">{tr("Zona sem LEDs configurados: informe a quantidade ao lado e aplique.")}</span>}
         <button className="btn small" disabled={busy} onClick={() => apply()}>{tr("Aplicar")}</button>
         <button className="btn small danger" disabled={busy} onClick={turnOff}>{tr("Desligar")}</button>
@@ -1420,12 +1420,12 @@ function Power() {
         {p.batteries.map((b) => (
           <section key={b.name} className="card">
             <h2>{tr("Bateria")} {p.batteries.length > 1 ? b.name : ""}</h2>
-            <Meter label={tr(BAT_STATUS[b.status] ?? (b.status || "—"))} value={b.percent} text={b.percent != null ? `${b.percent.toFixed(0)}%` : "—"} />
+            <Meter label={tr(BAT_STATUS[b.status] ?? (b.status || "—"))} value={b.percent} text={b.percent != null ? `${b.percent.toFixed(0)} %` : "—"} />
             {row("Fonte", p.ac_online == null ? "—" : p.ac_online ? tr("Na tomada") : tr("Na bateria"))}
             {b.power_w != null && row(b.status === "Charging" ? "Carregando a" : "Consumo da bateria", `${b.power_w.toFixed(1)} W`)}
-            {b.health_pct != null && row("Saúde", `${b.health_pct.toFixed(0)}%`)}
+            {b.health_pct != null && row("Saúde", `${b.health_pct.toFixed(0)} %`)}
             {b.cycles != null && row("Ciclos de carga", String(b.cycles))}
-            {b.limit_pct != null && row("Limite de carga", `${b.limit_pct}%`)}
+            {b.limit_pct != null && row("Limite de carga", `${b.limit_pct} %`)}
             {b.technology && row("Tecnologia", b.technology)}
           </section>
         ))}
@@ -1480,8 +1480,8 @@ function ThermalStrip() {
   }, [m]);
   return (
     <div className="strip" aria-label={tr("Estado ao vivo")}>
-      <Meter label="CPU" value={m?.cpu_load ?? null} text={m ? `${(m.cpu_load ?? 0).toFixed(0)}% · ${n0(m.cpu_temp, "°C")}` : "—"} />
-      <Meter label="GPU" value={m?.gpu_util ?? null} text={m ? `${Math.round(m.gpu_util ?? 0)}% · ${n0(m.gpu_temp, "°C")}` : "—"} />
+      <Meter label="CPU" value={m?.cpu_load ?? null} text={m ? `${(m.cpu_load ?? 0).toFixed(0)} % · ${n0(m.cpu_temp, "°C")}` : "—"} />
+      <Meter label="GPU" value={m?.gpu_util ?? null} text={m ? `${Math.round(m.gpu_util ?? 0)} % · ${n0(m.gpu_temp, "°C")}` : "—"} />
       <Meter label="VRAM" value={pct(m?.vram_used_mb ?? null, m?.vram_total_mb ?? null)} text={m?.vram_used_mb != null ? `${(m.vram_used_mb / 1024).toFixed(1)} GB` : "—"} />
       <Meter label="RAM" value={pct(m?.ram_used_gb ?? null, m?.ram_total_gb ?? null)} text={m?.ram_used_gb != null ? `${m.ram_used_gb.toFixed(1)} GB` : "—"} />
     </div>

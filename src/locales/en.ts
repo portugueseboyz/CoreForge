@@ -4,6 +4,8 @@ import { BACKEND_EXACT, BACKEND_TEMPLATES } from "./en-backend";
 const UI: Record<string, string> = {
   "Últimos 10 minutos de temperatura, carga, consumo e ventoinha, com mínimo, média e máximo.": "Last 10 minutes of temperature, load, power and fan speed, with min, average and max.",
   "Ventoinha": "Fan",
+  "Cor": "Color",
+  "Brilho {0} %": "Brightness {0} %",
   "Cor e efeito dos LEDs RGB da placa-mãe, da memória e dos periféricos, quando o hardware permitir.": "Color and effect of the RGB LEDs on the motherboard, memory and peripherals, when the hardware allows.",
   "Passe o mouse ou toque no gráfico para ver o valor.": "Hover or tap the chart to read a value.",
   "mín.": "min",
