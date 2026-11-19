@@ -6,7 +6,7 @@
   "build": {
     "beforeDevCommand": "cargo build --manifest-path src-tauri/Cargo.toml --bin coreforge-helper && npm run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "npm run build",
+    "beforeBuildCommand": "npm run build && cargo build --manifest-path src-tauri/Cargo.toml --release --bin coreforge-helper",
     "frontendDist": "../dist"
   },
   "app": {
@@ -31,6 +31,30 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "category": "Utility",
+    "shortDescription": "Hardware toolkit for Linux",
+    "longDescription": "System information, live sensors, CPU/RAM/GPU stress tests, benchmarks, disk and network diagnostics, fan curves and RGB control.",
+    "copyright": "Copyright (c) 2026 Gustavo (GustavoReset) and CoreForge contributors",
+    "license": "MIT",
+    "licenseFile": "../LICENSE",
+    "linux": {
+      "deb": {
+        "depends": [
+          "pkexec | policykit-1"
+        ],
+        "recommends": [
+          "smartmontools",
+          "lm-sensors",
+          "power-profiles-daemon",
+          "libnotify-bin"
+        ],
+        "section": "utils",
+        "files": {
+          "/usr/libexec/coreforge/coreforge-helper": "target/release/coreforge-helper",
+          "/usr/share/polkit-1/actions/org.coreforge.helper.policy": "packaging/org.coreforge.helper.policy"
+        }
+      }
+    }
   }
 }

@@ -38,6 +38,16 @@ Reading is unprivileged. Anything that writes to hardware (fan speed, loading dr
 `src-tauri/packaging/org.coreforge.helper.policy`). Fan control and curves ask for the password once (remembered for a few minutes); installing packages, udev rules, boot-time drivers and serial-port access ask every time. It accepts a closed set of actions with validated arguments and never runs free text.
 In development it uses the helper built next to the app (`cargo build --bin coreforge-helper` runs automatically with `npm run tauri dev`).
 
+## Install
+
+Download from the [Releases](https://github.com/portugueseboyz/CoreForge/releases) page (when a release exists) or build it yourself (`npx tauri build`, see Development).
+
+- **`.deb` (Debian, Ubuntu, Mint):** `sudo apt install ./CoreForge_*_amd64.deb`. Installs the app, the privileged helper in `/usr/libexec/coreforge/`
+  and the polkit policy, so fan control, curves and driver setup work.
+- **`.rpm` (Fedora, openSUSE):** `sudo dnf install ./CoreForge-*.x86_64.rpm`.
+- **AppImage:** runs anywhere, but cannot install the privileged helper, so everything that needs a password (fan control, curves, installing
+  packages) is unavailable. Reading sensors, stress tests, benchmarks and reports work.
+
 ## Development
 
 Requirements: Node 20+, Rust stable, and the Tauri Linux dependencies (`libwebkit2gtk-4.1-dev`, `build-essential`, `libssl-dev`,
