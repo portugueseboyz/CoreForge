@@ -40,3 +40,17 @@ strip = true
 # O benchmark de CPU e os stress tests precisam de código otimizado também em debug.
 [profile.dev]
 opt-level = 3
+
+[features]
+# The helper is built on its own (see tauri.conf.json) and installed to /usr/libexec; keeping it out of the default
+# bins stops the Tauri bundler from also copying it to /usr/bin.
+helper = []
+
+[[bin]]
+name = "coreforge-helper"
+path = "src/bin/coreforge-helper.rs"
+required-features = ["helper"]
+
+[[bin]]
+name = "coreforge"
+path = "src/main.rs"

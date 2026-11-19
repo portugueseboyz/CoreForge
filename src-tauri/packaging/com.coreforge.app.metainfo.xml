@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.coreforge.app</id>
+  <name>CoreForge</name>
+  <summary>Hardware toolkit for Linux</summary>
+  <summary xml:lang="pt">Ferramentas de hardware para Linux</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <developer id="com.coreforge"><name>CoreForge contributors</name></developer>
+  <description>
+    <p>System information, live sensors, CPU, RAM and GPU stress tests, benchmarks, disk and network diagnostics, fan curves and RGB control.</p>
+    <p>Reading is unprivileged. Changing fan speed or loading drivers goes through a small privileged helper authorised by polkit.</p>
+    <p xml:lang="pt">Informações do sistema, sensores ao vivo, testes de estresse de CPU, RAM e GPU, benchmarks, diagnóstico de disco e rede, curvas de ventoinha e controle de RGB.</p>
+    <p xml:lang="pt">A leitura não exige privilégios. Mudar a velocidade das ventoinhas ou carregar drivers passa por um pequeno helper privilegiado autorizado pelo polkit.</p>
+  </description>
+  <launchable type="desktop-id">coreforge.desktop</launchable>
+  <provides><binary>coreforge</binary></provides>
+  <url type="homepage">https://github.com/portugueseboyz/CoreForge</url>
+  <url type="bugtracker">https://github.com/portugueseboyz/CoreForge/issues</url>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.1.0" date="2026-11-19"/>
+  </releases>
+</component>

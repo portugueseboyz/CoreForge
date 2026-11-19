@@ -34,14 +34,16 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libsoup-3.0-dev
 
       - run: npm ci
+      - name: Versions (package.json, Cargo.toml, tauri.conf.json)
+        run: node scripts/check-versions.mjs
       - name: TypeScript e build do front-end
         run: npm run build
       - name: Testes do front-end
         run: npm test
       - name: Testes do Rust
-        run: cargo test --manifest-path src-tauri/Cargo.toml
+        run: cargo test --manifest-path src-tauri/Cargo.toml --all-features
       - name: Clippy
-        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings
 
   # Auditorias de dependências: informativas (não derrubam o CI; avisos novos aparecem sem relação com o commit).
   audit-cargo:

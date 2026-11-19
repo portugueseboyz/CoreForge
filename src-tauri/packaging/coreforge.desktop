@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=CoreForge
+GenericName=Hardware Toolkit
+GenericName[pt]=Ferramentas de hardware
+Comment=System information, sensors, stress tests, benchmarks and fan control
+Comment[pt]=Informações do sistema, sensores, testes de estresse, benchmarks e controle de ventoinhas
+Keywords=hardware;sensors;temperature;fan;stress;benchmark;cpu;gpu;monitor;rgb;
+Keywords[pt]=hardware;sensores;temperatura;ventoinha;estresse;benchmark;cpu;gpu;monitor;rgb;
+Categories=System;Monitor;Utility;
+Exec={{exec}}
+Icon={{icon}}
+Terminal=false
