@@ -188,3 +188,15 @@ input[type=text] { background: #0a0a0a; color: var(--text); border: 1px solid va
   .filters label { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .sensors { display: block; overflow-x: auto; }
 }
+
+/* ===== Histórico + relatório (feature-history-report) ===== */
+.hist-bar { margin-bottom: 16px; align-items: center; gap: 10px; }
+.hist svg { touch-action: pan-y; cursor: crosshair; }
+.hist svg:focus-visible { outline: 2px solid var(--accent, #b4ff1f); outline-offset: 2px; }
+.hist .hist-cursor line { stroke: var(--dim); stroke-width: 1; }
+.hist-read { min-height: 20px; margin-top: 4px; font: 12px var(--mono); display: flex; gap: 10px; flex-wrap: wrap; }
+.hist-stats { width: 100%; margin: 8px 0 4px; border-collapse: collapse; font: 12px var(--mono); }
+.hist-stats th, .hist-stats td { text-align: right; padding: 3px 4px; font-weight: 400; color: var(--text); }
+.hist-stats thead th { color: var(--dim); } .hist-stats tbody th { text-align: left; }
+.hist-stats i { display: inline-block; width: 9px; height: 9px; margin-right: 6px; border-radius: 2px; }
+@media (prefers-reduced-motion: reduce) { .hist, .hist * { transition: none !important; animation: none !important; } }

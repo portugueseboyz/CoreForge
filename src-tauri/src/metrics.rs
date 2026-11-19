@@ -12,7 +12,7 @@ pub struct MetricsState(Mutex<Vec<(u64, u64)>>);
 #[derive(Serialize, Default)]
 pub struct Metrics {
     gpu_name: Option<String>, gpu_util: Option<u32>, gpu_temp: Option<u32>, gpu_clock: Option<u32>, gpu_mem_clock: Option<u32>,
-    gpu_power_w: Option<f64>, gpu_fan: Option<u32>, vram_used_mb: Option<f64>, vram_total_mb: Option<f64>, gpu_throttle: Option<String>,
+    gpu_power_w: Option<f64>, gpu_fan: Option<u32>, fan_rpm: Option<f64>, vram_used_mb: Option<f64>, vram_total_mb: Option<f64>, gpu_throttle: Option<String>,
     cpu_load: Option<f64>, cpu_busiest: Option<f64>, cpu_temp: Option<f64>, cpu_clock_mhz: Option<f64>,
     ram_used_gb: Option<f64>, ram_total_gb: Option<f64>,
     fps: Option<f64>, fps_stale: bool,
@@ -58,6 +58,7 @@ pub fn live_metrics(st: tauri::State<MetricsState>) -> Metrics {
     }
     *prev = cur;
     m.cpu_temp = cpu_temp();
+    m.fan_rpm = crate::sysinfo::fan_rpm();
     let clocks: Vec<f64> = (0..256).map_while(|n| {
         let p = format!("/sys/devices/system/cpu/cpu{n}");
         std::path::Path::new(&p).exists().then(|| read(&format!("{p}/cpufreq/scaling_cur_freq")).and_then(|s| s.parse::<f64>().ok()))

@@ -208,6 +208,17 @@ pub fn sensors(prev: tauri::State<CpuPrev>) -> Vec<Sensor> {
     out
 }
 
+/// Maior leitura de ventoinha (RPM) entre os chips hwmon; `None` se nenhuma gira ou não há sensor.
+pub fn fan_rpm() -> Option<f64> {
+    let mut best: Option<f64> = None;
+    for e in fs::read_dir("/sys/class/hwmon").ok()?.flatten() {
+        for n in 1..=8 {
+            if let Some(v) = read(&format!("{}/fan{n}_input", e.path().display())).and_then(|s| s.parse::<f64>().ok()).filter(|v| *v > 0.0) { best = Some(best.map_or(v, |b| b.max(v))); }
+        }
+    }
+    best
+}
+
 /// Temperatura principal da CPU em °C: Package/Tctl/Tdie, senão a maior entre os sensores do chip da CPU.
 pub fn cpu_temp() -> Option<f64> {
     let mut best: Option<f64> = None;
