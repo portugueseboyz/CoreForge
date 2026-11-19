@@ -243,7 +243,7 @@ function Profiles() {
             ))}
             <div className="row fan-ctl">
               <button className="btn small" disabled={busy === p.name} onClick={() => apply(p)}>{tr("Aplicar")}</button>
-              <button className="btn small danger" onClick={() => start(p)}>{p.apply_on_start ? tr("Não usar ao iniciar") : tr("Usar ao iniciar")}</button>
+              <button className="btn small ghost" onClick={() => start(p)}>{p.apply_on_start ? tr("Não usar ao iniciar") : tr("Usar ao iniciar")}</button>
               <button className="btn small danger" onClick={() => remove(p)}>{tr("Excluir")}</button>
             </div>
           </section>
@@ -861,7 +861,7 @@ function FanRow({ c, onDone }: { c: Channel; onDone: (m: string) => void }) {
           <input type="range" min={c.min} max={c.max} value={v} onChange={(e) => setV(+e.target.value)} aria-label={tf("Velocidade de {0}", c.label)} />
           <span className="strong">{v} %</span>
           <button className="btn small" disabled={busy} onClick={() => go(v)}>{tr("Aplicar")}</button>
-          <button className="btn small danger" disabled={busy} onClick={() => go(null)}>{tr("Automático")}</button>
+          <button className="btn small ghost" disabled={busy} onClick={() => go(null)}>{tr("Automático")}</button>
         </div>
       ) : !c.controllable && <p className="dim">{tr("Só leitura: o kernel não expõe controle de velocidade para este canal.")}</p>}
     </div>
@@ -908,7 +908,7 @@ function Fans() {
         <button className="btn small" disabled={!!busy} onClick={scan}>{tr("Procurar controladores")}</button>
         {chips.length > 0 && <button className="btn small" disabled={!!busy} onClick={identify}>{tr("Identificar controles")}</button>}
       </div>
-      {driver && <div><button className="btn small danger" onClick={() => { if (window.confirm(tf("Fazer o driver {0} carregar em todo boot? Cria um arquivo em /etc/modules-load.d e pede a sua senha.", driver))) invoke<string>("fan_persist_module", { name: driver }).then(setMsg).catch((e) => setMsg(String(e))); }}>{tf("Manter {0} ativo após reiniciar", driver)}</button></div>}
+      {driver && <div><button className="btn small ghost" onClick={() => { if (window.confirm(tf("Fazer o driver {0} carregar em todo boot? Cria um arquivo em /etc/modules-load.d e pede a sua senha.", driver))) invoke<string>("fan_persist_module", { name: driver }).then(setMsg).catch((e) => setMsg(String(e))); }}>{tf("Manter {0} ativo após reiniciar", driver)}</button></div>}
       {busy && <p className="dim">{busy}</p>}
       {msg && <p className="dim">{msg}</p>}
       {r.channels.length === 0 && <section className="card"><p className="dim">{tr("Nenhuma ventoinha encontrada.")}</p></section>}
@@ -953,8 +953,8 @@ function PerLed({ d, zone, count, base, onDone }: { d: LedDevice; zone: number; 
       <div className="row fan-ctl">
         <input type="color" value={pick} onChange={(e) => paint(e.target.value)} aria-label={tr("Cor dos LEDs selecionados")} disabled={sel.length === 0} />
         <span className="dim">{tf("{0} de {1} LEDs selecionados", sel.length, count)}</span>
-        <button className="btn small danger" onClick={() => setSel(cols.map((_, i) => i))}>{tr("Todos")}</button>
-        <button className="btn small danger" onClick={() => setSel([])}>{tr("Nenhum")}</button>
+        <button className="btn small ghost" onClick={() => setSel(cols.map((_, i) => i))}>{tr("Todos")}</button>
+        <button className="btn small ghost" onClick={() => setSel([])}>{tr("Nenhum")}</button>
         <button className="btn small" disabled={busy} onClick={send}>{tr("Aplicar LED por LED")}</button>
       </div>
     </div>
@@ -990,7 +990,7 @@ function LedRow({ d, onDone }: { d: LedDevice; onDone: (m: string) => void }) {
         {addressable && (d.zone_leds[zone] ?? 0) === 0 && <span className="reason">{tr("Zona sem LEDs configurados: informe a quantidade ao lado e aplique.")}</span>}
         <button className="btn small" disabled={busy} onClick={() => apply()}>{tr("Aplicar")}</button>
         <button className="btn small danger" disabled={busy} onClick={turnOff}>{tr("Desligar")}</button>
-        {zone >= 0 && d.modes.includes("Direct") && <button className="btn small danger" onClick={() => setEach(!each)} aria-expanded={each}>{each ? tr("Ocultar LED por LED") : tr("LED por LED")}</button>}
+        {zone >= 0 && d.modes.includes("Direct") && <button className="btn small ghost" onClick={() => setEach(!each)} aria-expanded={each}>{each ? tr("Ocultar LED por LED") : tr("LED por LED")}</button>}
       </div>
       {each && zone >= 0 && d.modes.includes("Direct") && (() => {
         const count = addressable ? Math.max(d.zone_leds[zone] ?? 0, leds) : (d.zone_leds[zone] ?? 0);
@@ -1052,7 +1052,7 @@ function RgbDiscovery({ onChanged, devices }: { onChanged: () => void; devices: 
           </div>
         )}
         {msg && <p className="dim">{msg}</p>}
-        <div><button className="btn small danger" onClick={makeReport}>{tr("Copiar relatório de hardware")}</button></div>
+        <div><button className="btn small ghost" onClick={makeReport}>{tr("Copiar relatório de hardware")}</button></div>
         {report && <pre className="log">{report}</pre>}
       </section>
     </>
@@ -1074,7 +1074,7 @@ function Leds() {
       {msg && <p className="dim">{msg}</p>}
       <RgbDiscovery onChanged={load} devices={r?.devices ?? []} />
       {r && r.devices.length > 0 && <div className="cards cards-2">{r.devices.map((d) => <section className="card" key={d.index}><LedRow d={d} onDone={setMsg} /></section>)}</div>}
-      {r?.installed && <button className="btn small danger" onClick={load}>{tr("Procurar de novo")}</button>}
+      {r?.installed && <button className="btn small ghost" onClick={load}>{tr("Procurar de novo")}</button>}
     </>
   );
 }
@@ -1237,7 +1237,7 @@ const SECTIONS: Section[] = [
   { id: "controle", title: "Ventoinhas e LEDs", tabs: [
     { id: "fans", label: "Ventoinhas", blurb: tr("Velocidade das ventoinhas e cor dos LEDs RGB, no mesmo lugar: ajuste manual quando o hardware permitir."), view: () => <Fans /> },
     { id: "curvas", label: "Curvas", blurb: tr("A velocidade das ventoinhas segue a temperatura da CPU ou da GPU, pela curva que você definir."), view: () => <Curves /> },
-    { id: "leds", label: "LEDs", blurb: tr("Velocidade das ventoinhas e cor dos LEDs RGB, no mesmo lugar: ajuste manual quando o hardware permitir."), view: () => <Leds /> },
+    { id: "leds", label: "LEDs", blurb: tr("Cor e efeito dos LEDs RGB da placa-mãe, da memória e dos periféricos, quando o hardware permitir."), view: () => <Leds /> },
     { id: "perfis", label: "Perfis", blurb: tr("Guarde as velocidades e as luzes que você ajustou e reaplique com um clique, ou ao iniciar a sessão."), view: () => <Profiles /> }] },
   { id: "ferramentas", title: "Ferramentas", tabs: [
     { id: "startup", label: "Inicialização", blurb: tr("Programas que abrem junto com a sua sessão."), view: () => <Startup /> },
