@@ -1,12 +1,12 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "CoreForge",
+  "productName": "coreforge",
   "version": "0.1.0",
   "identifier": "com.coreforge.app",
   "build": {
-    "beforeDevCommand": "cargo build --manifest-path src-tauri/Cargo.toml --bin coreforge-helper && npm run dev",
+    "beforeDevCommand": "cargo build --manifest-path src-tauri/Cargo.toml --bin coreforge-helper --features helper && npm run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "npm run build && cargo build --manifest-path src-tauri/Cargo.toml --release --bin coreforge-helper",
+    "beforeBuildCommand": "npm run build && cargo build --manifest-path src-tauri/Cargo.toml --release --bin coreforge-helper --features helper",
     "frontendDist": "../dist"
   },
   "app": {
@@ -52,8 +52,21 @@
         "section": "utils",
         "files": {
           "/usr/libexec/coreforge/coreforge-helper": "target/release/coreforge-helper",
-          "/usr/share/polkit-1/actions/org.coreforge.helper.policy": "packaging/org.coreforge.helper.policy"
-        }
+          "/usr/share/polkit-1/actions/org.coreforge.helper.policy": "packaging/org.coreforge.helper.policy",
+          "/usr/share/metainfo/com.coreforge.app.metainfo.xml": "packaging/com.coreforge.app.metainfo.xml"
+        },
+        "desktopTemplate": "packaging/coreforge.desktop"
+      },
+      "rpm": {
+        "files": {
+          "/usr/libexec/coreforge/coreforge-helper": "target/release/coreforge-helper",
+          "/usr/share/polkit-1/actions/org.coreforge.helper.policy": "packaging/org.coreforge.helper.policy",
+          "/usr/share/metainfo/com.coreforge.app.metainfo.xml": "packaging/com.coreforge.app.metainfo.xml"
+        },
+        "desktopTemplate": "packaging/coreforge.desktop",
+        "depends": [
+          "polkit"
+        ]
       }
     }
   }

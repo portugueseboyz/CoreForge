@@ -39,9 +39,9 @@ Em desenvolvimento, usa o helper compilado junto ao app (`cargo build --bin core
 
 Baixe na página de [Releases](https://github.com/portugueseboyz/CoreForge/releases) (quando existir uma) ou compile você mesmo (`npx tauri build`, veja Desenvolvimento).
 
-- **`.deb` (Debian, Ubuntu, Mint):** `sudo apt install ./CoreForge_*_amd64.deb`. Instala o app, o ajudante com privilégios em `/usr/libexec/coreforge/`
+- **`.deb` (Debian, Ubuntu, Mint):** `sudo apt install ./coreforge_*_amd64.deb`. Instala o app, o ajudante com privilégios em `/usr/libexec/coreforge/`
   e a política do polkit, então controle de ventoinhas, curvas e instalação de drivers funcionam.
-- **`.rpm` (Fedora, openSUSE):** `sudo dnf install ./CoreForge-*.x86_64.rpm`.
+- **`.rpm` (Fedora, openSUSE):** `sudo dnf install ./coreforge-*.x86_64.rpm`.
 - **AppImage:** roda em qualquer lugar, mas não consegue instalar o ajudante com privilégios, então o que pede senha (ventoinhas, curvas, instalar
   pacotes) fica indisponível. Leitura de sensores, testes de stress, benchmarks e relatórios funcionam.
 
